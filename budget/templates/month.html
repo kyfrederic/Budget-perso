@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ month_label(m.year, m.month)|capitalize }} — Budget{% endblock %}
+{% from "_icons.html" import icon %}
 {% block content %}
 {% set titre = "Budget de" %}{% include "_monthnav.html" %}
 
@@ -25,9 +26,10 @@
   <div class="tile"><span>Budget</span><b>{{ summary.total_budget|eur }}</b><small>dont matelas {{ summary.reserve|eur(decimales=False) }}</small></div>
   <div class="tile"><span>Épargne à réception</span><b>{{ summary.epargne_debut|eur }}</b><small>salaire − budget</small></div>
   <div class="tile {% if summary.deficit %}bad{% endif %}"><span>Reste du matelas</span><b>{{ summary.matelas_rest|eur }}</b>
-    <meter min="0" max="{{ [summary.reserve, 1]|max }}" low="{{ summary.reserve * 0.25 }}" optimum="{{ summary.reserve }}" value="{{ [[summary.matelas_rest, 0]|max, summary.reserve]|min }}"></meter>
+    {% set shown = [[summary.matelas_rest, 0]|max, summary.reserve]|min %}
+    <progress class="bar {{ 'bad' if summary.deficit or shown * 4 < summary.reserve else 'ok' }}" max="{{ [summary.reserve, 1]|max }}" value="{{ shown }}" aria-label="Reste du matelas">{{ summary.matelas_rest|eur }}</progress>
     <small>{{ summary.n_entered }}/{{ summary.n_lines }} réels saisis</small></div>
-  <div class="tile good"><span>Épargne du mois</span><b>{{ summary.epargne_mois|eur }}</b><small>{% if summary.taux_epargne is not none %}taux d'épargne {{ '%.0f'|format(summary.taux_epargne) }} %{% else %}à réception + reste du matelas{% endif %}</small></div>
+  <div class="tile good hero"><span>Épargne du mois</span><b>{{ summary.epargne_mois|eur }}</b><small>{% if summary.taux_epargne is not none %}taux d'épargne {{ '%.0f'|format(summary.taux_epargne) }} %{% else %}à réception + reste du matelas{% endif %}</small></div>
 </section>
 
 {% if proposals %}
@@ -99,7 +101,7 @@
       <label class="c-actual"><span class="lbl">Réel</span><input name="actual_{{ l.line_id }}" inputmode="decimal" value="{{ l.actual|saisie }}" placeholder="—" aria-label="Réel {{ l.name }}"></label>
       <span class="diff {% if l.diff and l.diff > 0 %}over{% elif l.diff and l.diff < 0 %}under{% endif %}">{% if l.diff is not none %}{{ l.diff|eur(signe=True) }}{% endif %}</span>
       <label class="partner"><span class="lbl">Laetitia</span><input name="partner_{{ l.line_id }}" inputmode="decimal" value="{{ l.info_partner|saisie }}" aria-label="Part de Laetitia {{ l.name }}"></label>
-      <button class="link rm" formaction="{{ url_for('views.line_remove', year=m.year, month=m.month, line_id=l.line_id) }}" formnovalidate title="Retirer ce poste de ce mois" aria-label="Retirer {{ l.name }} de ce mois">×</button>
+      <button class="link rm" formaction="{{ url_for('views.line_remove', year=m.year, month=m.month, line_id=l.line_id) }}" formnovalidate title="Retirer ce poste de ce mois" aria-label="Retirer {{ l.name }} de ce mois">{{ icon('retirer', 18) }}</button>
       {% endif %}
     </div>
     {% endfor %}

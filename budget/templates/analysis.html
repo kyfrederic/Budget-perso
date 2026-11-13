@@ -8,11 +8,11 @@
   {% for n in notes %}<p class="note {{ n.level }}">{{ n.text }}</p>{% else %}<p class="muted">Rien à signaler.</p>{% endfor %}
 </section>
 
-<section class="tiles">
+<section class="tiles four">
   <div class="tile"><span>Salaire net</span><b>{{ row.salary_net|eur }}</b></div>
   <div class="tile"><span>Budget prévu</span><b>{{ summary.total_budget|eur }}</b></div>
   <div class="tile {% if summary.deficit %}bad{% endif %}"><span>Matelas</span><b>{{ summary.matelas_rest|eur }}</b><small>dépassements {{ summary.overruns|eur }} · économies {{ summary.savings|eur }}</small></div>
-  <div class="tile good"><span>Épargne du mois</span><b>{{ summary.epargne_mois|eur }}</b><small>{% if summary.taux_epargne is not none %}taux d'épargne {{ '%.0f'|format(summary.taux_epargne) }} % (avec l'épargne programmée){% endif %}</small></div>
+  <div class="tile good hero"><span>Épargne du mois</span><b>{{ summary.epargne_mois|eur }}</b><small>{% if summary.taux_epargne is not none %}taux d'épargne {{ '%.0f'|format(summary.taux_epargne) }} % (avec l'épargne programmée){% endif %}</small></div>
 </section>
 
 <section class="card">
