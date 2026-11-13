@@ -130,3 +130,27 @@ def overdue_cheques(db, user_id: int, year: int, month: int) -> list:
 def previous_month_row(db, user_id: int, year: int, month: int):
     y, m = prev_month(year, month)
     return month_row(db, user_id, y, m)
+
+
+def transfers_done(db, month_id: int) -> set[tuple[str, str]]:
+    """{(nom du compte, 'debut' | 'fin')} des virements cochés « fait » pour ce mois."""
+    rows = db.execute(
+        "SELECT a.name, t.kind FROM transfers_done t JOIN accounts a ON a.id = t.account_id "
+        "WHERE t.month_id = ?", (month_id,),
+    )
+    return {(r["name"], r["kind"]) for r in rows}
+
+
+def toggle_transfer(db, month_id: int, account_id: int, kind: str) -> bool:
+    """Bascule l'état d'un virement ; renvoie True s'il est maintenant « fait »."""
+    cur = db.execute(
+        "DELETE FROM transfers_done WHERE month_id = ? AND account_id = ? AND kind = ?",
+        (month_id, account_id, kind),
+    )
+    if cur.rowcount:
+        return False
+    db.execute(
+        "INSERT INTO transfers_done (month_id, account_id, kind) VALUES (?, ?, ?)",
+        (month_id, account_id, kind),
+    )
+    return True

@@ -96,13 +96,13 @@ def test_parcours_complet(app, client):
     # Deuxième mois de dépassement sur la nourriture -> proposition, puis acceptation.
     save(2026, 11, "3200", {"Nourriture": "480"})
     page = client.get("/mois/2026/11").get_data(as_text=True)
-    assert "Propositions d'ajustement" in page
+    assert "Une idée pour" in page
     m = re.search(r'action="(/propositions/\d+/\d+/accepter)"', page)
     assert client.post(m.group(1), data={"csrf": t}).status_code == 302
     planned = q(app, "SELECT l.planned FROM lines l JOIN postes p ON p.id = l.poste_id JOIN months m ON m.id = l.month_id "
                      "WHERE p.name = 'Nourriture' AND m.month = 11")[0]["planned"]
     assert planned == 47500                      # médiane (470, 480) arrondie à 5 €
-    assert "Propositions d'ajustement" not in client.get("/mois/2026/11").get_data(as_text=True)
+    assert "Une idée pour" not in client.get("/mois/2026/11").get_data(as_text=True)
     # Octobre n'est pas modifié.
     assert q(app, "SELECT l.planned FROM lines l JOIN postes p ON p.id = l.poste_id JOIN months m ON m.id = l.month_id "
                   "WHERE p.name = 'Nourriture' AND m.month = 10")[0]["planned"] == 40000
@@ -158,3 +158,23 @@ def test_cle_secrete_generee(tmp_path, monkeypatch):
     assert len(app.config["SECRET_KEY"]) == 64
     assert (tmp_path / "secret_key").stat().st_mode & 0o777 == 0o600
     assert app.test_client().get("/connexion").status_code == 200
+
+
+def test_virements_a_cocher(app, client):
+    seed(app)
+    t = login(client)
+    data = {"csrf": t, "account": "Boursorama", "kind": "debut"}
+    assert client.post("/mois/2026/10/virement", data=data).status_code == 302
+    assert [tuple(r) for r in q(app, "SELECT a.name, t.kind FROM transfers_done t JOIN accounts a ON a.id = t.account_id")] == [("Boursorama", "debut")]
+    assert 'aria-pressed="true"' in client.get("/mois/2026/10").get_data(as_text=True)
+    # Le virement de fin de mois (reste du matelas) se coche à part.
+    r = client.post("/mois/2026/10/virement", data={"csrf": t, "account": "Livret A LCL", "kind": "fin"},
+                    headers={"X-Requested-With": "fetch"})
+    assert r.get_json() == {"done": True}
+    # Un nouveau mois repart sans rien de coché.
+    client.post("/mois/nouveau", data={"csrf": t, "year": 2026, "month": 11, "salary_net": "3200"})
+    assert 'aria-pressed="true"' not in client.get("/mois/2026/11").get_data(as_text=True)
+    # Décocher.
+    client.post("/mois/2026/10/virement", data=data)
+    assert len(q(app, "SELECT * FROM transfers_done")) == 1
+    assert client.post("/mois/2026/10/virement", data={"csrf": t, "account": "Inconnu"}).status_code == 400

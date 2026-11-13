@@ -4,15 +4,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#1E40AF" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0F172A" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#EDF1E6">
+<meta name="color-scheme" content="light">
 <title>{% block title %}Budget{% endblock %}</title>
 <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
 <link rel="icon" href="{{ url_for('static', filename='icon.svg') }}" type="image/svg+xml">
 <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon.svg') }}">
-<link rel="preload" href="{{ url_for('static', filename='fonts/plex-400.woff2') }}" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="{{ url_for('static', filename='fonts/figtree-400.woff2') }}" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 {% if g.user_id %}<link rel="stylesheet" href="{{ url_for('views.couleurs') }}">{% endif %}
+<script src="{{ url_for('static', filename='app.js') }}" defer></script>
 </head>
 <body class="{{ 'signed-in' if g.user_id else 'signed-out' }}">
 {% if g.user_id %}

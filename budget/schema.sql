@@ -99,6 +99,17 @@ CREATE TABLE IF NOT EXISTS credit_balances (
     PRIMARY KEY (credit_id, year, month)
 );
 
+-- Virements cochés « fait » pour un mois.
+-- kind = 'debut' : virement à la réception du salaire vers ce compte ;
+-- kind = 'fin'   : reste du matelas viré vers le compte d'épargne en fin de mois.
+CREATE TABLE IF NOT EXISTS transfers_done (
+    month_id   INTEGER NOT NULL REFERENCES months(id) ON DELETE CASCADE,
+    account_id INTEGER NOT NULL REFERENCES accounts(id),
+    kind       TEXT NOT NULL DEFAULT 'debut' CHECK (kind IN ('debut','fin')),
+    done_at    TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (month_id, account_id, kind)
+);
+
 CREATE TABLE IF NOT EXISTS login_attempts (
     ip TEXT NOT NULL,
     ts REAL NOT NULL

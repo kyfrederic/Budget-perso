@@ -12,7 +12,7 @@
   <div class="tile"><span>Salaire net</span><b>{{ row.salary_net|eur }}</b></div>
   <div class="tile"><span>Budget prévu</span><b>{{ summary.total_budget|eur }}</b></div>
   <div class="tile {% if summary.deficit %}bad{% endif %}"><span>Matelas</span><b>{{ summary.matelas_rest|eur }}</b><small>dépassements {{ summary.overruns|eur }} · économies {{ summary.savings|eur }}</small></div>
-  <div class="tile good hero"><span>Épargne du mois</span><b>{{ summary.epargne_mois|eur }}</b><small>{% if summary.taux_epargne is not none %}taux d'épargne {{ '%.0f'|format(summary.taux_epargne) }} % (avec l'épargne programmée){% endif %}</small></div>
+  <div class="tile hero-tile"><span>Épargne du mois</span><b data-count="{{ summary.epargne_mois if summary.epargne_mois is not none else 0 }}">{{ summary.epargne_mois|eur(decimales=False) }}</b><small>{% if summary.taux_epargne is not none %}taux d'épargne {{ '%.0f'|format(summary.taux_epargne) }} % (avec l'épargne programmée){% endif %}</small></div>
 </section>
 
 <section class="card">
@@ -23,7 +23,7 @@
     {% for s in split %}
     <tr><td>{{ s.label }}</td><td class="num">{{ s.amount|eur }}</td>
       <td class="num"><b>{{ '%.0f'|format(s.pct) }} %</b></td><td class="num muted">{{ '%.0f'|format(s.target) }} %</td>
-      <td class="bar"><progress max="100" value="{{ [s.pct, 100]|min }}" class="cat-{{ s.key }}">{{ '%.0f'|format(s.pct) }} %</progress></td></tr>
+      <td class="bar"><progress max="100" value="{{ [s.pct, 100]|min }}" class="cat-{{ s.key }}" data-bar>{{ '%.0f'|format(s.pct) }} %</progress></td></tr>
     {% endfor %}
     </tbody>
   </table>
@@ -53,7 +53,7 @@
     {% for c in suivis %}
     <tr><td>{{ c.name }}</td><td class="num">{{ c.balance|eur }}</td>
       <td class="num">{% if c.delta is not none %}{{ c.delta|eur(signe=True) }}{% endif %}</td>
-      <td>{% if c.target_date %}{{ c.target_date|datefr }} {% if c.on_track is true %}<span class="badge ok">tenable</span>{% elif c.on_track is false %}<span class="badge bad">en retard</span>{% endif %}{% endif %}</td></tr>
+      <td>{% if c.target_date %}{{ c.target_date|datefr }} {% if c.on_track is true %}<span class="badge ok">tenable</span>{% elif c.on_track is false %}<span class="badge bad">rythme à revoir</span>{% endif %}{% endif %}</td></tr>
     {% endfor %}
     </tbody>
   </table>

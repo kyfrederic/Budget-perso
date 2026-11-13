@@ -156,11 +156,22 @@ L'onglet « Orthodontie » d'Excel est un exemple de projet d'achat ; une télé
 | Laetitia | Colonne facultative **par poste**, affichée, jamais additionnée. |
 | Fichiers Excel | Fournis par Fred pendant une session, **jamais commités** (dossier `import/` ignoré par git). Le dépôt ne contient que du code et des montants d'exemple. |
 
+### Décisions de design (même jour)
+
+| Sujet | Décision |
+|---|---|
+| Ambiance | **Nature**, choisie parmi trois maquettes. Objectif : agréable, non stressant, animé et fluide. |
+| Thème | **Toujours clair**, quel que soit le réglage de l'appareil. |
+| Couleur d'alerte | Le rouge est réservé au risque de découvert. Dépassement de poste et **chèque oublié** passent en ton argile (remplace le « signalé en rouge » de la section 10). |
+| Virements | **À cocher** un par un quand ils sont faits, y compris le virement de fin de mois du reste du matelas. État enregistré par mois. |
+| Écran Mois | Lecture d'abord (épargne du mois, matelas, suggestions, virements, avancement), saisie plus bas sur le même écran. |
+| Propositions | Présentées comme des idées : « Oui, ajuster » / « Plus tard ». « Plus tard » vaut refus pour ce mois de référence. |
+
 ## 13 ter. État de la V1
 
 - Stack : Flask + SQLite + pages côté serveur (voir `README.md` pour lancer, configurer et déployer).
 - Règles métier dans `budget/rules.py` (fonctions pures, testées dans `tests/test_rules.py`). Montants stockés en centimes.
-- **Design** : les écrans suivent `design-system/budget/MASTER.md`, établi avec le skill `ui-ux-pro-max` (installé dans `.claude/skills/`). Toute évolution d'écran part de ce fichier. CSS simple, police hébergée localement, pas de style ni de script en ligne (CSP).
+- **Design** : ambiance « Nature » (sauge et argile, toujours claire, animée), décrite dans `design-system/budget/MASTER.md`. Toute évolution d'écran part de ce fichier. CSS simple, police hébergée localement, mouvement dans `static/app.js`, pas de style ni de script en ligne (CSP). Le skill `ui-ux-pro-max` est installé dans `.claude/skills/`.
 - **Reste à faire en V1** : import des Excel (en attente des fichiers), premier déploiement réel sur le VPS avec test de restauration.
 
 ## 14. Prochaines étapes

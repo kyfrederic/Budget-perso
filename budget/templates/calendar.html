@@ -36,9 +36,9 @@
 
 <section class="card">
   <h2>Chèques de {{ month_label(m.year, m.month) }}</h2>
-  {% if cheques_pending %}<p class="note info">Chèque à passer : {{ cheques_pending|eur }}, à retrancher du disponible.</p>{% endif %}
+  {% if cheques_pending %}<p class="note calm">Chèque à passer : {{ cheques_pending|eur }}, à retrancher du disponible.</p>{% endif %}
   {% for c in overdue %}
-  <p class="note alert">{{ c.amount|eur }} pour {{ c.payee }}, prévu en {{ month_label(c.year, c.month) }}, toujours en attente : as-tu oublié de le déposer ?</p>
+  <p class="note warn">{{ c.amount|eur }} pour {{ c.payee }}, prévu en {{ month_label(c.year, c.month) }}, toujours en attente : as-tu oublié de le déposer ?</p>
   {% endfor %}
   <ul class="cheques">
     {% for c in cheques %}

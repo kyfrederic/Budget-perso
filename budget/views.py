@@ -123,8 +123,16 @@ def month(year: int, month: int):
     groups: dict[str, list] = {}
     for l in ctx["m"].lines:
         groups.setdefault(l.account, []).append(l)
+    done = store.transfers_done(db, row["id"])
+    # Le compte du salaire ne reçoit pas de virement : l'argent y reste.
+    todo = [v for v in ctx["summary"].virements if v.kind != "reste"]
+    progress = [l for l in ctx["m"].lines if l.diff is not None]
     return render_template(
-        "month.html", **ctx, groups=groups, cheques=cheques,
+        "month.html", **ctx, groups=groups, cheques=cheques, done=done, todo=todo,
+        stays=[v for v in ctx["summary"].virements if v.kind == "reste"],
+        n_left=sum(1 for v in todo if (v.account, "debut") not in done),
+        progress=sorted(progress, key=lambda l: -(l.actual / l.planned if l.planned else 9)),
+        reserve_account=next((l.account for l in ctx["m"].lines if l.is_reserve), None),
         cheques_total=sum(c["amount"] for c in cheques),
         salary_month=month_label(*prev_month(year, month)),
         available_postes=db.execute(
@@ -158,6 +166,22 @@ def month_save(year: int, month: int):
     db.commit()
     flash("Mois enregistré.")
     return redirect(url_for("views.month", year=year, month=month))
+
+
+@bp.route("/mois/<int:year>/<int:month>/virement", methods=["POST"])
+def transfer_toggle(year: int, month: int):
+    """Coche ou décoche un virement (« fait »)."""
+    row = _month_or_404(year, month)
+    db = get_db()
+    kind = request.form.get("kind", "debut")
+    acc = next((a for a in _accounts() if a["name"] == request.form.get("account")), None)
+    if acc is None or kind not in ("debut", "fin"):
+        abort(400, "Virement inconnu.")
+    is_done = store.toggle_transfer(db, row["id"], acc["id"], kind)
+    db.commit()
+    if request.headers.get("X-Requested-With") == "fetch":
+        return {"done": is_done}
+    return redirect(url_for("views.month", year=year, month=month) + "#virements")
 
 
 @bp.route("/mois/<int:year>/<int:month>/ligne", methods=["POST"])

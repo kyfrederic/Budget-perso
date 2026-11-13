@@ -5,7 +5,7 @@ Cahier des charges et décisions : [CLAUDE.md](CLAUDE.md). Ce dépôt contient l
 
 ## Ce que fait la V1
 
-- **Mois** : prévu et réel par poste, part de Laetitia pour information, virements par compte, épargne du mois.
+- **Mois** : épargne du mois et matelas en tête, virements par compte à cocher quand ils sont faits, prévu et réel par poste, part de Laetitia pour information.
 - **Matelas** : reste = 500 € − dépassements + économies ; alerte quand il ne suffit plus.
 - **Nouveau mois** : copie du mois précédent, saisie du salaire, du net imposable et du prélèvement à la source.
 - **Propositions d'ajustement** (hausse ou baisse), à accepter ou refuser.
@@ -65,6 +65,10 @@ Non testé dans un vrai conteneur à ce stade (pas de Docker dans l'environnemen
   ```
 - `scripts/restore_test.sh` : restaure la dernière sauvegarde et vérifie qu'elle est lisible.
 - Garder le mot de passe restic ailleurs que sur le VPS : sans lui, aucune restauration n'est possible.
+
+## Design
+
+Ambiance « Nature », toujours claire, décrite dans [design-system/budget/MASTER.md](design-system/budget/MASTER.md). Le mouvement (`static/app.js`) est une amélioration progressive : tout fonctionne sans JavaScript.
 
 ## Sécurité
 

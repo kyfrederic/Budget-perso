@@ -1,66 +1,78 @@
-# Système de design — Budget
+# Système de design — Budget, ambiance « Nature »
 
-Référence unique pour le style des écrans. Établi avec le skill `ui-ux-pro-max`
-(`.claude/skills/ui-ux-pro-max/`), puis adapté aux contraintes du projet.
-Les valeurs vivent dans `budget/static/style.css` (variables CSS en tête de fichier).
+Référence unique pour le style des écrans. Ambiance choisie par Fred le 2026-11-13 parmi trois
+maquettes (Douceur, Nature, Nuit calme). Les valeurs vivent dans `budget/static/style.css`
+(variables en tête de fichier) ; le mouvement dans `budget/static/app.js`.
 
-## Requêtes d'origine
+## Intention
+
+Une appli où l'on peut passer du temps sans stress : tons de sauge et d'argile, aplats, formes
+rondes, rien qui brille ni qui clignote. Le mouvement accompagne, il ne distrait pas.
+
+## Origine
+
+Pistes trouvées avec le skill `ui-ux-pro-max` (`.claude/skills/ui-ux-pro-max/`) :
 
 ```bash
 S=.claude/skills/ui-ux-pro-max/scripts/search.py
-python3 $S "personal finance budget tracker dashboard" --design-system -p "Budget" --density 7 --variance 3 --motion 2
-python3 $S "financial dashboard data numbers tabular" --domain typography
-python3 $S "banking fintech trust light" --domain color
-python3 $S "personal finance budget app" --domain product
-python3 $S "progress budget remaining gauge" --domain chart
-python3 $S "form input labels inline validation" --domain ux
-python3 $S "data table mobile responsive" --domain ux
+python3 $S "calm soft relaxing wellness friendly" --domain style     # Soft UI Evolution, Nature Distilled
+python3 $S "soft organic warm cozy rounded" --domain style           # Nature Distilled, Organic Biophilic
+python3 $S "micro interactions easing duration feedback" --domain ux
 ```
 
-## Ce qui est retenu
-
-| Sujet | Recommandation du skill | Application |
-|---|---|---|
-| Style | **Minimalism & Swiss Style** : grille, hiérarchie typographique nette, peu d'effets, contraste élevé | Bordures fines, pas d'ombre, rayons de 8 px, chiffres mis en avant |
-| Couleurs | « Calm blue + success green + alert red » ; bleu `#1E40AF`, bleu secondaire `#3B82F6`, vert `#059669`, rouge `#DC2626` ; fond sombre `#0F172A`, carte `#192134` | Thème sombre repris tel quel ; thème clair pris dans la palette « Banking » du skill (fond `#F8FAFC`, carte `#FFFFFF`, texte `#020617`, texte secondaire `#475569`, bordure `#E2E8F0`) |
-| Typographie | Paire « Financial Trust » : **IBM Plex Sans** (titres et texte) | Police hébergée dans `static/fonts/` (licence OFL), chiffres tabulaires |
-| Densité | 7/10 : échelle d'espacement 8 → 32 px | Rythme 4 / 8 px |
-| Matelas | Barre de progression avec le nombre et la cible en texte à côté ; la couleur seule ne suffit pas | `<progress>` + montant + mention « n/n réels saisis » |
-| Tableaux | Mobile d'abord ; cartes ou défilement horizontal sur téléphone | Lignes du budget en cartes sur téléphone, en tableau à partir de 760 px |
-| Formulaires | Libellé visible pour chaque champ, jamais le seul texte d'exemple | Libellés au-dessus des champs ; `aria-label` sur les champs du tableau |
-| Navigation | 5 destinations au plus dans une barre basse sur téléphone | Barre basse : Mois, Calendrier, Analyse, Chèques, Plus ; barre haute sur PC |
-| Icônes | SVG d'une seule famille, pas d'émoji | Tracés au trait de 2 px, dans `templates/_icons.html` |
-| Interaction | Cibles ≥ 44 px, survol 150–250 ms, focus visible, `prefers-reduced-motion` | Appliqué partout |
-
-## Ce qui est écarté, et pourquoi
-
-- **Caveat + Quicksand** (typographie proposée par la génération automatique) : écriture manuscrite, hors sujet pour un outil de chiffres. Remplacée par la paire « Financial Trust » trouvée avec une recherche ciblée.
-- **Glassmorphism + OLED** (style principal du type « Personal Finance Tracker ») : flous et transparences nuisent à la lecture des montants. Le style secondaire recommandé (Minimalism & Swiss) est retenu.
-- **Modèle de page « Product Demo », animation GSAP au défilement** : recommandations pour une page vitrine, sans objet ici.
-- **Tailwind, polices Google en ligne** : le projet reste en CSS simple, sans service tiers, avec une politique CSP stricte.
-- **Vert `#059669` pour le texte** : contraste de 3,8:1 sur blanc, insuffisant. Le texte utilise `#047857` (5,5:1) ; `#059669` sert aux aplats.
+Retenu : « Nature Distilled » / « Organic Biophilic » (tons terreux atténués, coins de 16 à 24 px,
+courbes d'arrivée naturelles). Écarté : textures de grain et parallaxe (décor sans utilité ici),
+le beige crème et la police à empattements (remplacés par une base sauge et une police sans
+empattements, plus lisible pour des chiffres).
 
 ## Jetons
 
-| Rôle | Clair | Sombre |
+| Rôle | Valeur | Contraste |
 |---|---|---|
-| Fond | `#F8FAFC` | `#0F172A` |
-| Carte | `#FFFFFF` | `#192134` |
-| Texte | `#020617` | `#F8FAFC` |
-| Texte secondaire | `#475569` | `#94A3B8` |
-| Bordure | `#E2E8F0` | `#2B3650` |
-| Bordure de champ | `#7C8BA1` | `#64748B` |
-| Primaire (boutons, onglet actif) | `#1E40AF` sur blanc | `#3B82F6`, texte `#020617` |
-| Lien | `#1E40AF` | `#93C5FD` |
-| Positif (épargne, économie) | `#047857` | `#34D399` |
-| Négatif (dépassement, alerte) | `#DC2626` | `#F87171` |
-| Attention | `#A16207` | `#FBBF24` |
+| Fond | `#EDF1E6` | |
+| Carte | `#FBFCF7` | |
+| Texte | `#22301F` | 12,1:1 sur le fond |
+| Texte secondaire | `#57664F` | 5,4:1 sur le fond, 4,8:1 sur le bandeau |
+| Bandeau de l'épargne | `#DDE8CC` | |
+| Vert feuille (boutons, barres, « fait ») | `#3F6B3A` | blanc dessus : 6,2:1 |
+| Argile (dépassement, rappel) | texte `#96481F`, aplat `#B8623A`, fond `#F7E7DC` | 5,4:1 |
+| Rouge (risque de découvert seulement) | `#A8261E` sur `#FBE9E6` | 6,1:1 |
+| Trait | `#D9E0CD` | |
 
-Les couleurs des banques ne font pas partie du système : elles se règlent dans `config/settings.toml`.
+- **Toujours clair** : pas de thème sombre, quel que soit le réglage de l'appareil (décision de Fred).
+- **Police** : Figtree 400 à 800, hébergée dans `static/fonts/` (licence OFL). Chiffres tabulaires.
+- **Formes** : cartes 22 px, petits blocs 14 px, boutons et étiquettes en pilule. Pas d'ombre.
+- **Espacement** : rythme 4 / 8 px (4, 8, 12, 16, 24, 32).
+- Les couleurs des banques ne font pas partie du système : elles se règlent dans `config/settings.toml`.
 
-## Règles
+## Ton et couleur
 
-- Un montant est toujours aligné à droite, en chiffres tabulaires.
-- Un écart porte toujours son signe (`+` ou `−`) : la couleur ne fait que le renforcer.
-- Un message d'alerte porte une icône en plus de sa couleur.
-- Pas de style ni de script en ligne dans les gabarits (CSP).
+- **Le rouge est réservé au vrai risque** : matelas dépassé, budget supérieur au salaire.
+- Un dépassement de poste, un chèque oublié, un crédit en retard sur son objectif : **argile**, et une phrase posée
+  (« Le matelas a absorbé 77 €. Tout va bien, il est là pour ça. »).
+- Une proposition d'ajustement se présente comme une idée : « Oui, ajuster » / « Plus tard ».
+- L'écran du mois s'ouvre sur l'épargne du mois, en grand.
+- Un écart porte toujours son signe (`+` ou `−`), un message porte une icône : la couleur ne fait que renforcer.
+
+## Mouvement
+
+| Élément | Comportement | Durée |
+|---|---|---|
+| Changement de page | Fondu enchaîné (`@view-transition`) | 260 ms |
+| Blocs de la page | Arrivent en cascade, de 12 px plus bas | 600 ms, décalage de 50 ms |
+| Montants clés (`data-count`) | Montent de 0 à leur valeur | 1,2 s |
+| Anneau du matelas (`data-ring`) | Se remplit | 1,4 s |
+| Barres d'avancement (`data-bar`) | Se remplissent l'une après l'autre | 0,9 s |
+| Virement coché | Petit rebond, ligne qui s'estompe, sans rechargement | 380 ms |
+| Boutons | Se tassent légèrement à l'appui | 180 ms |
+| Message de confirmation | S'efface seul après 4,5 s | 600 ms |
+
+- Courbe unique : `cubic-bezier(.22, 1, .36, 1)` (arrivée douce).
+- **Amélioration progressive** : la page est complète et au repos sans script ; le serveur rend toujours la valeur finale.
+- `prefers-reduced-motion` coupe tout mouvement.
+
+## Contraintes techniques
+
+- CSS simple, pas de dépendance, pas de service tiers.
+- Pas de style ni de script en ligne dans les gabarits (CSP `default-src 'self'`) ; `app.js` est un fichier local.
+- Cibles tactiles de 44 px au moins, focus visible, téléphone d'abord.
