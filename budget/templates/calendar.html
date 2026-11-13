@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Calendrier {{ month_label(m.year, m.month) }} — Budget{% endblock %}
+{% block content %}
+{% set titre = "Calendrier de" %}{% include "_monthnav.html" %}
+
+<section class="legend">
+  {% for c in settings.comptes %}<span class="{{ account_class(c.nom) }}"><span class="dot"></span>{{ c.nom }}</span>{% endfor %}
+</section>
+
+<section class="card cal-wrap">
+  <div class="cal" role="grid" aria-label="Prélèvements du mois">
+    {% for d in ['lun', 'mar', 'mer', 'jeu', 'ven', 'sam', 'dim'] %}<div class="dow">{{ d }}</div>{% endfor %}
+    {% for week in weeks %}{% for day in week %}
+    <div class="day {% if not day %}empty{% endif %} {% if day == today_day %}today{% endif %}">
+      {% if day %}<span class="num">{{ day }}</span>
+      {% for l in by_day.get(day, []) %}<span class="ev {{ account_class(l.account) }}" title="{{ l.account }}">{{ l.name }} <b>{{ l.planned|eur(decimales=False) }}</b></span>{% endfor %}
+      {% endif %}
+    </div>
+    {% endfor %}{% endfor %}
+  </div>
+  <ul class="agenda">
+    {% for day in days %}
+    <li><span class="daynum">{{ day }}</span>
+      <div>{% for l in by_day[day] %}<span class="ev {{ account_class(l.account) }}">{{ l.name }} <b>{{ l.planned|eur }}</b></span>{% endfor %}</div></li>
+    {% else %}<li class="muted">Aucun prélèvement daté.</li>{% endfor %}
+  </ul>
+</section>
+
+{% if undated %}
+<section class="card">
+  <h2>Sans jour de prélèvement</h2>
+  <p class="evs">{% for l in undated %}<span class="ev {{ account_class(l.account) }}">{{ l.name }} <b>{{ l.planned|eur(decimales=False) }}</b></span>{% endfor %}</p>
+  <p class="muted small">Le jour se règle dans l'écran <a href="{{ url_for('views.postes') }}">Postes</a>.</p>
+</section>
+{% endif %}
+
+<section class="card">
+  <h2>Chèques de {{ month_label(m.year, m.month) }}</h2>
+  {% if cheques_pending %}<p class="note calm">Chèque à passer : {{ cheques_pending|eur }}, à retrancher du disponible.</p>{% endif %}
+  {% for c in overdue %}
+  <p class="note warn">{{ c.amount|eur }} pour {{ c.payee }}, prévu en {{ month_label(c.year, c.month) }}, toujours en attente : as-tu oublié de le déposer ?</p>
+  {% endfor %}
+  <ul class="cheques">
+    {% for c in cheques %}
+    <li class="{{ c.status }}">
+      <div><b>{{ c.amount|eur }}</b> — {{ c.payee }}{% if c.account %} <small class="muted">({{ c.account }})</small>{% endif %}{% if c.note %}<small class="muted"> · {{ c.note }}</small>{% endif %}</div>
+      {% if c.status == 'pending' %}
+      <form method="post" action="{{ url_for('views.cheque_action', cheque_id=c.id, action='debite') }}">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="next" value="{{ request.path }}">
+        <button class="small">Débité</button></form>
+      {% else %}<span class="badge ok">débité</span>{% endif %}
+    </li>
+    {% else %}<li class="muted">Aucun chèque prévu ce mois.</li>{% endfor %}
+  </ul>
+  <p><a href="{{ url_for('views.cheques') }}">Ajouter ou gérer les chèques</a></p>
+</section>
+{% endblock %}

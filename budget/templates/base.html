@@ -1,0 +1,63 @@
+<!doctype html>
+{% from "_icons.html" import icon %}
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#EDF1E6">
+<meta name="color-scheme" content="light">
+<title>{% block title %}Budget{% endblock %}</title>
+<link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
+<link rel="icon" href="{{ url_for('static', filename='icon.svg') }}" type="image/svg+xml">
+<link rel="apple-touch-icon" href="{{ url_for('static', filename='icon.svg') }}">
+<link rel="preload" href="{{ url_for('static', filename='fonts/figtree-400.woff2') }}" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+{% if g.user_id %}<link rel="stylesheet" href="{{ url_for('views.couleurs') }}">{% endif %}
+<script src="{{ url_for('static', filename='app.js') }}" defer></script>
+</head>
+<body class="{{ 'signed-in' if g.user_id else 'signed-out' }}">
+{% if g.user_id %}
+{% set ep = request.endpoint %}
+{% set has_month = row is defined and row %}
+{% macro link(endpoint, label, ico=None) -%}
+  {%- if endpoint in ('views.month', 'views.calendar_view', 'views.analysis') -%}
+    {%- set href = url_for(endpoint, year=row.year, month=row.month) if has_month else url_for('views.home') -%}
+  {%- else -%}{%- set href = url_for(endpoint) -%}{%- endif -%}
+  <a href="{{ href }}" {% if ep == endpoint %}aria-current="page"{% endif %}>{% if ico %}{{ icon(ico, 22) }}{% endif %}<span>{{ label }}</span></a>
+{%- endmacro %}
+<a class="skip" href="#contenu">Aller au contenu</a>
+<header class="top">
+  <a class="brand" href="{{ url_for('views.home') }}">Budget</a>
+  <nav class="desk" aria-label="Navigation principale">
+    {{ link('views.month', 'Mois') }}
+    {% if has_month %}{{ link('views.calendar_view', 'Calendrier') }}{{ link('views.analysis', 'Analyse') }}{% endif %}
+    {{ link('views.cheques', 'Chèques') }}{{ link('views.postes', 'Postes') }}{{ link('views.credits', 'Crédits') }}{{ link('views.months', 'Historique') }}
+  </nav>
+  <form method="post" action="{{ url_for('auth.logout') }}" class="logout">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <button class="link">Quitter</button>
+  </form>
+</header>
+<nav class="tabbar" aria-label="Navigation principale">
+  {{ link('views.month', 'Mois', 'mois') }}
+  {{ link('views.calendar_view', 'Calendrier', 'calendrier') }}
+  {{ link('views.analysis', 'Analyse', 'analyse') }}
+  {{ link('views.cheques', 'Chèques', 'cheques') }}
+  <details class="more">
+    <summary {% if ep in ('views.postes', 'views.credits', 'views.months') %}class="current"{% endif %}>{{ icon('plus-menu', 22) }}<span>Plus</span></summary>
+    <div class="sheet">
+      {{ link('views.postes', 'Postes') }}{{ link('views.credits', 'Crédits') }}{{ link('views.months', 'Historique') }}
+      <form method="post" action="{{ url_for('auth.logout') }}">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+        <button class="link">Quitter</button>
+      </form>
+    </div>
+  </details>
+</nav>
+{% endif %}
+<main id="contenu">
+{% for msg in get_flashed_messages() %}<p class="flash" role="status">{{ msg }}</p>{% endfor %}
+{% block content %}{% endblock %}
+</main>
+</body>
+</html>

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Postes — Budget{% endblock %}
+{% macro fields(p=None) %}
+  <label class="grow">Nom <input name="name" required maxlength="120" value="{{ p.name if p else '' }}"></label>
+  <label>Compte <select name="account_id">{% for a in accounts %}<option value="{{ a.id }}" {% if p and p.account_id == a.id %}selected{% endif %}>{{ a.name }}</option>{% endfor %}</select></label>
+  <label>Catégorie <select name="category">{% for k, v in categories.items() %}<option value="{{ k }}" {% if p and p.category == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
+  <label class="tiny">Jour <input type="number" name="debit_day" min="1" max="31" value="{{ p.debit_day if p and p.debit_day else '' }}"></label>
+  <label class="check"><input type="checkbox" name="seasonal" {% if p and p.seasonal %}checked{% endif %}> Saisonnier</label>
+  <label class="check"><input type="checkbox" name="contractual" {% if p and p.contractual %}checked{% endif %}> Contractuel</label>
+{% endmacro %}
+{% block content %}
+<h1 class="page">Postes</h1>
+<p class="muted">Saisonnier : montant fixe toute l'année, jamais de proposition de baisse. Contractuel (emprunt, assurances…) : jamais de proposition. Les montants se règlent dans l'écran du mois.</p>
+
+<form method="post" class="card poste-form">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <h2>Nouveau poste</h2>
+  <div class="fields">
+    {{ fields() }}
+    <label class="tiny2">Prévu <input name="planned" inputmode="decimal" placeholder="0,00"></label>
+  </div>
+  <button class="primary">Ajouter</button>
+</form>
+
+{% for p in postes %}
+<form method="post" action="{{ url_for('views.poste_update', poste_id=p.id) }}" class="card poste-form {{ account_class(p.account) }} {% if not p.active %}inactive{% endif %}">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <div class="fields">
+    {{ fields(p) }}
+    {% if p.is_reserve %}<span class="badge">matelas</span>
+    {% else %}<label class="check"><input type="checkbox" name="active" {% if p.active %}checked{% endif %}> Actif</label>{% endif %}
+    <button class="small">Enregistrer</button>
+  </div>
+</form>
+{% else %}
+<p class="note warn">Aucun poste. Charge le modèle avec <code>flask --app budget charger-modele</code> ou crée-les ci-dessus.</p>
+{% endfor %}
+<p class="muted small">Un poste inactif reste dans l'historique mais n'est plus copié dans les nouveaux mois.</p>
+{% endblock %}

@@ -1,0 +1,10 @@
+{
+  "name": "Budget",
+  "short_name": "Budget",
+  "lang": "fr",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#EDF1E6",
+  "theme_color": "#3F6B3A",
+  "icons": [{ "src": "/static/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
