@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Analyse {{ month_label(m.year, m.month) }} — Budget{% endblock %}
+{% block content %}
+{% set titre = "Analyse de" %}{% include "_monthnav.html" %}
+
+<section class="card">
+  <h2>Constats et pistes</h2>
+  {% for n in notes %}<p class="note {{ n.level }}">{{ n.text }}</p>{% else %}<p class="muted">Rien à signaler.</p>{% endfor %}
+</section>
+
+<section class="tiles">
+  <div class="tile"><span>Salaire net</span><b>{{ row.salary_net|eur }}</b></div>
+  <div class="tile"><span>Budget prévu</span><b>{{ summary.total_budget|eur }}</b></div>
+  <div class="tile {% if summary.deficit %}bad{% endif %}"><span>Matelas</span><b>{{ summary.matelas_rest|eur }}</b><small>dépassements {{ summary.overruns|eur }} · économies {{ summary.savings|eur }}</small></div>
+  <div class="tile good"><span>Épargne du mois</span><b>{{ summary.epargne_mois|eur }}</b><small>{% if summary.taux_epargne is not none %}taux d'épargne {{ '%.0f'|format(summary.taux_epargne) }} % (avec l'épargne programmée){% endif %}</small></div>
+</section>
+
+<section class="card">
+  <h2>Répartition 50-30-20</h2>
+  <table class="plain">
+    <thead><tr><th>Catégorie</th><th class="num">Montant</th><th class="num">Part du salaire</th><th class="num">Cible</th><th></th></tr></thead>
+    <tbody>
+    {% for s in split %}
+    <tr><td>{{ s.label }}</td><td class="num">{{ s.amount|eur }}</td>
+      <td class="num"><b>{{ '%.0f'|format(s.pct) }} %</b></td><td class="num muted">{{ '%.0f'|format(s.target) }} %</td>
+      <td class="bar"><progress max="100" value="{{ [s.pct, 100]|min }}" class="cat-{{ s.key }}">{{ '%.0f'|format(s.pct) }} %</progress></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <p class="muted small">Réel quand il est saisi, sinon prévu. Le reste du matelas est compté en épargne.</p>
+</section>
+
+<section class="card">
+  <h2>Prévu et réel par poste</h2>
+  <table class="plain">
+    <thead><tr><th>Poste</th><th class="num">Prévu</th><th class="num">Réel</th><th class="num">Écart</th></tr></thead>
+    <tbody>
+    {% for l in m.lines if not l.is_reserve %}
+    <tr><td><span class="dot {{ account_class(l.account) }}"></span> {{ l.name }}</td><td class="num">{{ l.planned|eur }}</td><td class="num">{{ l.actual|eur }}</td>
+      <td class="num diff {% if l.diff and l.diff > 0 %}over{% elif l.diff and l.diff < 0 %}under{% endif %}">{% if l.diff is not none %}{{ l.diff|eur(signe=True) }}{% endif %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="card">
+  <h2>Crédits</h2>
+  {% set suivis = credits|selectattr('balance', 'ne', none)|list %}
+  {% if suivis %}
+  <table class="plain">
+    <thead><tr><th>Crédit</th><th class="num">Reste dû</th><th class="num">Évolution</th><th>Objectif</th></tr></thead>
+    <tbody>
+    {% for c in suivis %}
+    <tr><td>{{ c.name }}</td><td class="num">{{ c.balance|eur }}</td>
+      <td class="num">{% if c.delta is not none %}{{ c.delta|eur(signe=True) }}{% endif %}</td>
+      <td>{% if c.target_date %}{{ c.target_date|datefr }} {% if c.on_track is true %}<span class="badge ok">tenable</span>{% elif c.on_track is false %}<span class="badge bad">en retard</span>{% endif %}{% endif %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">Aucun solde saisi. <a href="{{ url_for('views.credits') }}">Saisir les soldes</a></p>{% endif %}
+</section>
+{% endblock %}

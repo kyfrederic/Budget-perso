@@ -1,0 +1,8 @@
+.git
+.venv
+instance
+backups
+tests
+import
+**/__pycache__
+deploy/.env

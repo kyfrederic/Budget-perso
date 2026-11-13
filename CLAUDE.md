@@ -141,6 +141,27 @@ L'onglet « Orthodontie » d'Excel est un exemple de projet d'achat ; une télé
 - Postes saisonniers : sans historique d'un an, la première année repose sur le montant fixe choisi à la main ; l'hiver peut consommer tout le matelas de 500 € si le montant fixé est trop bas.
 - Sécurité du VPS et sauvegardes à prévoir dès la V1.
 
+## 13 bis. Décisions de la session du 2026-11-13 (clarifications avant la V1)
+
+| Sujet | Décision |
+|---|---|
+| Seuil des propositions | Un écart ne compte que s'il dépasse **10 % ET 10 €**. |
+| Économies d'un poste | Elles **compensent** les dépassements : reste du matelas = 500 € − dépassements + économies. L'alerte se déclenche quand ce reste devient négatif. |
+| Propositions de baisse | **Oui** pour les postes ni saisonniers ni contractuels, avec les mêmes seuils. |
+| Proposition acceptée | Le nouveau prévu s'applique au **mois en cours**, puis il est copié dans les mois suivants. |
+| Rattachement du salaire | Le salaire reçu fin du mois M finance le budget du **mois M+1**. |
+| Comptes | Salaire sur **LCL** ; matelas sur **N26** ; épargne (salaire − budget, puis reste du matelas) sur le **Livret A LCL**. |
+| Second facteur | **Non** en V1 : mot de passe long + limitation des tentatives. |
+| 50-30-20 | Classement repris de l'onglet Excel, modifiable poste par poste. |
+| Laetitia | Colonne facultative **par poste**, affichée, jamais additionnée. |
+| Fichiers Excel | Fournis par Fred pendant une session, **jamais commités** (dossier `import/` ignoré par git). Le dépôt ne contient que du code et des montants d'exemple. |
+
+## 13 ter. État de la V1
+
+- Stack : Flask + SQLite + pages côté serveur (voir `README.md` pour lancer, configurer et déployer).
+- Règles métier dans `budget/rules.py` (fonctions pures, testées dans `tests/test_rules.py`). Montants stockés en centimes.
+- **Reste à faire en V1** : import des Excel (en attente des fichiers), premier déploiement réel sur le VPS avec test de restauration.
+
 ## 14. Prochaines étapes
 
 1. Dessiner les écrans de la V1 (mois en cours, nouveau mois, calendrier, analyse).

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Connexion — Budget{% endblock %}
+{% block content %}
+<section class="card narrow">
+  <h1>Budget</h1>
+  {% if error %}<p class="note alert" role="alert">{{ error }}</p>{% endif %}
+  <form method="post">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <label>Mot de passe
+      <input type="password" name="password" autocomplete="current-password" required autofocus>
+    </label>
+    <button class="primary">Se connecter</button>
+  </form>
+</section>
+{% endblock %}

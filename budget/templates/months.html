@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Historique — Budget{% endblock %}
+{% block content %}
+<h1 class="page">Historique</h1>
+<section class="card">
+  <table class="plain">
+    <thead><tr><th>Mois</th><th class="num">Salaire</th><th class="num">Budget</th><th class="num">Reste matelas</th><th class="num">Épargne</th><th></th></tr></thead>
+    <tbody>
+    {% for it in months %}
+    <tr>
+      <td><a href="{{ url_for('views.month', year=it.row.year, month=it.row.month) }}">{{ month_label(it.row.year, it.row.month) }}</a></td>
+      <td class="num">{{ it.row.salary_net|eur(decimales=False) }}</td>
+      <td class="num">{{ it.summary.total_budget|eur(decimales=False) }}</td>
+      <td class="num {% if it.summary.deficit %}diff over{% endif %}">{{ it.summary.matelas_rest|eur(decimales=False) }}</td>
+      <td class="num"><b>{{ it.summary.epargne_mois|eur(decimales=False) }}</b></td>
+      <td><a href="{{ url_for('views.analysis', year=it.row.year, month=it.row.month) }}">Analyse</a></td>
+    </tr>
+    {% else %}<tr><td colspan="6" class="muted">Aucun mois.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</section>
+<p class="center"><a class="btn" href="{{ url_for('views.new_month') }}">Nouveau mois</a></p>
+{% endblock %}

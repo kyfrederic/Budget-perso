@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Nouveau mois — Budget{% endblock %}
+{% block content %}
+<section class="card narrow">
+  <h1>Nouveau mois</h1>
+  {% if latest %}
+  <p class="muted">Les postes, montants et comptes de {{ month_label(latest.year, latest.month) }} sont copiés. Le réel repart de zéro.</p>
+  <p><a href="{{ url_for('views.analysis', year=latest.year, month=latest.month) }}">Voir d'abord l'analyse de {{ month_label(latest.year, latest.month) }}</a></p>
+  {% elif n_postes %}
+  <p class="muted">Premier mois : il part des {{ n_postes }} postes du modèle.</p>
+  {% else %}
+  <p class="note warn">Aucun poste n'existe encore. Charge d'abord le modèle (<code>flask --app budget charger-modele</code>) ou crée tes postes dans l'écran <a href="{{ url_for('views.postes') }}">Postes</a>.</p>
+  {% endif %}
+  <form method="post">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <div class="row2">
+      <label>Mois du budget
+        <select name="month">{% for i in range(1, 13) %}<option value="{{ i }}" {% if i == month %}selected{% endif %}>{{ MOIS_FR[i-1] }}</option>{% endfor %}</select>
+      </label>
+      <label>Année <input type="number" name="year" value="{{ year }}" min="2000" max="2100" required></label>
+    </div>
+    <p class="muted small">Ce budget est financé par le salaire reçu fin {{ salary_month }}.</p>
+    <label>Salaire net reçu <input name="salary_net" inputmode="decimal" placeholder="0,00" required></label>
+    <label>Net imposable <input name="net_imposable" inputmode="decimal" placeholder="0,00"></label>
+    <label>Prélèvement à la source <input name="pas" inputmode="decimal" placeholder="0,00"></label>
+    <button class="primary">Créer le mois</button>
+  </form>
+</section>
+{% endblock %}
