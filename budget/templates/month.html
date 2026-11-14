@@ -73,6 +73,14 @@
 {% endmacro %}
 <section class="card" id="virements">
   <h2>Virements à faire <span class="count" data-left>{% if todo and n_left == 0 %}tous faits{% elif todo %}{{ n_left }} à faire{% endif %}</span></h2>
+  {% if remaining is not none and todo %}
+  <div class="salary-left">
+    <p class="hero-label">Reste du salaire sur {{ settings.compte_salaire }}</p>
+    <p class="salary-big"><span data-remaining="{{ remaining }}">{{ remaining|eur(decimales=False) }}</span></p>
+    <progress class="bar" max="{{ [to_send, 1]|max }}" value="{{ sent }}" data-sent aria-label="Part des virements déjà faits">{{ sent|eur }}</progress>
+    <p class="muted small">Salaire de {{ row.salary_net|eur(decimales=False) }}. Il restera {{ remaining_end|eur(decimales=False) }} quand tous les virements seront faits.</p>
+  </div>
+  {% endif %}
   <ul class="virements">
     {% for v in todo %}
     {% set is_done = (v.account, 'debut') in done %}

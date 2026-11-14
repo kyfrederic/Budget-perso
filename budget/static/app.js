@@ -55,12 +55,30 @@
         .then(function (d) {
           btn.setAttribute('aria-pressed', d.done ? 'true' : 'false');
           li.classList.toggle('done', d.done);
-          var left = document.querySelectorAll('.virements li:not(.later) .check-btn[aria-pressed="false"]').length;
           var out = document.querySelector('[data-left]');
-          if (out) out.textContent = left ? left + ' à faire' : 'tous faits';
+          if (out && typeof d.left === 'number') out.textContent = d.left ? d.left + ' à faire' : 'tous faits';
+          slideRemaining(d);
         })
         .catch(function () { form.submit(); });
     });
+  }
+
+  // Reste du salaire : glisse vers sa nouvelle valeur à chaque virement coché.
+  var money = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 });
+  function euros(cents) {
+    var v = Math.round(cents / 100);
+    return (v < 0 ? '\u2212' : '') + money.format(Math.abs(v)) + '\u00a0\u20ac';
+  }
+  function slideRemaining(d) {
+    var el = document.querySelector('[data-remaining]'), bar = document.querySelector('progress[data-sent]');
+    if (!el || typeof d.remaining !== 'number') return;
+    var from = parseInt(el.dataset.remaining, 10), to = d.remaining, sentFrom = bar ? bar.value : 0;
+    el.dataset.remaining = to;
+    if (reduce) { el.textContent = euros(to); if (bar) bar.value = d.sent; return; }
+    animate(700, 0, function (e) {
+      el.textContent = euros(from + (to - from) * e);
+      if (bar) bar.value = sentFrom + (d.sent - sentFrom) * e;
+    }, function () { el.textContent = euros(to); if (bar) bar.value = d.sent; });
   }
 
   document.querySelectorAll('[data-count]').forEach(countUp);

@@ -167,12 +167,24 @@ L'onglet « Orthodontie » d'Excel est un exemple de projet d'achat ; une télé
 | Écran Mois | Lecture d'abord (épargne du mois, matelas, suggestions, virements, avancement), saisie plus bas sur le même écran. |
 | Propositions | Présentées comme des idées : « Oui, ajuster » / « Plus tard ». « Plus tard » vaut refus pour ce mois de référence. |
 
+### Décisions du 2026-11-14 (import Excel, virements)
+
+| Sujet | Décision |
+|---|---|
+| Import Excel | Les 9 fichiers (mars à novembre 2026) sont importés **mois par mois** : salaire, postes et prévus de chaque fichier, soldes de crédits. Remplace « les prévus passés ne sont pas importés » de la section 5. Aucun réel (les fichiers n'en ont pas). |
+| Fichiers Excel | Fred les a déposés sur la branche `main` et choisit de les y **laisser**. Ils ne sont pas copiés dans la branche de l'appli ; les tests utilisent des classeurs fictifs. |
+| Prêt conso | Classé en **besoins** (et non en épargne comme dans l'onglet 50-30-20) : rembourser un prêt ne compte pas dans le taux d'épargne. |
+| Matelas | Reste sur **N26**, même si Excel range « Reserve » chez Boursorama. |
+| Livret A | Le poste « Livret A » est rattaché au compte « Livret A LCL » et rejoint le virement d'épargne. |
+| Reste du salaire | À chaque virement coché, son montant est **retranché du salaire** : l'écran affiche ce qu'il reste sur LCL à cet instant, et ce qu'il restera quand tout sera fait. Le virement de fin de mois du matelas ne part pas du salaire et n'est pas compté. |
+
 ## 13 ter. État de la V1
 
 - Stack : Flask + SQLite + pages côté serveur (voir `README.md` pour lancer, configurer et déployer).
 - Règles métier dans `budget/rules.py` (fonctions pures, testées dans `tests/test_rules.py`). Montants stockés en centimes.
 - **Design** : ambiance « Nature » (sauge et argile, toujours claire, animée), décrite dans `design-system/budget/MASTER.md`. Toute évolution d'écran part de ce fichier. CSS simple, police hébergée localement, mouvement dans `static/app.js`, pas de style ni de script en ligne (CSP). Le skill `ui-ux-pro-max` est installé dans `.claude/skills/`.
-- **Reste à faire en V1** : import des Excel (en attente des fichiers), premier déploiement réel sur le VPS avec test de restauration.
+- **Import Excel** : `flask --app budget import-excel DOSSIER --annee 2026` (aperçu), `--ecrire` pour importer dans une base vide. Lecture décrite en tête de `budget/importer.py`, correspondances dans `[import]` de `config/settings.toml`. Vérifié sur les 9 fichiers : totaux identiques à Excel.
+- **Reste à faire en V1** : premier déploiement réel sur le VPS (import à y relancer, sauvegardes, test de restauration). Net imposable et prélèvement à la source de mars à novembre à saisir à la main (absents d'Excel).
 
 ## 14. Prochaines étapes
 

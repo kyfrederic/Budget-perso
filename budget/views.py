@@ -124,13 +124,11 @@ def month(year: int, month: int):
     for l in ctx["m"].lines:
         groups.setdefault(l.account, []).append(l)
     done = store.transfers_done(db, row["id"])
-    # Le compte du salaire ne reçoit pas de virement : l'argent y reste.
-    todo = [v for v in ctx["summary"].virements if v.kind != "reste"]
+    state = _transfer_state(ctx["summary"], row["salary_net"], done)
     progress = [l for l in ctx["m"].lines if l.diff is not None]
     return render_template(
-        "month.html", **ctx, groups=groups, cheques=cheques, done=done, todo=todo,
+        "month.html", **ctx, groups=groups, cheques=cheques, done=done, **state,
         stays=[v for v in ctx["summary"].virements if v.kind == "reste"],
-        n_left=sum(1 for v in todo if (v.account, "debut") not in done),
         progress=sorted(progress, key=lambda l: -(l.actual / l.planned if l.planned else 9)),
         reserve_account=next((l.account for l in ctx["m"].lines if l.is_reserve), None),
         cheques_total=sum(c["amount"] for c in cheques),
@@ -168,6 +166,26 @@ def month_save(year: int, month: int):
     return redirect(url_for("views.month", year=year, month=month))
 
 
+def _transfer_state(summary, salary: int | None, done: set) -> dict:
+    """Où en sont les virements du mois, et ce qu'il reste du salaire à cet instant.
+
+    Reste = salaire − virements cochés. Le virement de fin de mois (reste du matelas)
+    ne part pas du salaire : il n'est pas compté. Le compte du salaire ne reçoit pas
+    de virement : ce qui lui revient y reste.
+    """
+    todo = [v for v in summary.virements if v.kind != "reste"]
+    sent = sum(v.amount for v in todo if (v.account, "debut") in done)
+    total = sum(v.amount for v in todo)
+    return {
+        "todo": todo,
+        "n_left": sum(1 for v in todo if (v.account, "debut") not in done),
+        "sent": sent,
+        "to_send": total,
+        "remaining": None if salary is None else salary - sent,
+        "remaining_end": None if salary is None else salary - total,
+    }
+
+
 @bp.route("/mois/<int:year>/<int:month>/virement", methods=["POST"])
 def transfer_toggle(year: int, month: int):
     """Coche ou décoche un virement (« fait »)."""
@@ -180,7 +198,9 @@ def transfer_toggle(year: int, month: int):
     is_done = store.toggle_transfer(db, row["id"], acc["id"], kind)
     db.commit()
     if request.headers.get("X-Requested-With") == "fetch":
-        return {"done": is_done}
+        m = store.load_month(db, row)
+        st = _transfer_state(rules.summarize(m, settings()), row["salary_net"], store.transfers_done(db, row["id"]))
+        return {"done": is_done, "left": st["n_left"], "sent": st["sent"], "remaining": st["remaining"]}
     return redirect(url_for("views.month", year=year, month=month) + "#virements")
 
 

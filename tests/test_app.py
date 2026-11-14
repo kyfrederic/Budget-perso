@@ -170,7 +170,7 @@ def test_virements_a_cocher(app, client):
     # Le virement de fin de mois (reste du matelas) se coche à part.
     r = client.post("/mois/2026/10/virement", data={"csrf": t, "account": "Livret A LCL", "kind": "fin"},
                     headers={"X-Requested-With": "fetch"})
-    assert r.get_json() == {"done": True}
+    assert r.get_json()["done"] is True
     # Un nouveau mois repart sans rien de coché.
     client.post("/mois/nouveau", data={"csrf": t, "year": 2026, "month": 11, "salary_net": "3200"})
     assert 'aria-pressed="true"' not in client.get("/mois/2026/11").get_data(as_text=True)
@@ -178,3 +178,32 @@ def test_virements_a_cocher(app, client):
     client.post("/mois/2026/10/virement", data=data)
     assert len(q(app, "SELECT * FROM transfers_done")) == 1
     assert client.post("/mois/2026/10/virement", data={"csrf": t, "account": "Inconnu"}).status_code == 400
+
+
+def test_reste_du_salaire(app, client):
+    """Chaque virement coché est retranché du salaire."""
+    seed(app)
+    t = login(client)
+    conn = sqlite3.connect(app.config["DATABASE"])
+    conn.execute("UPDATE months SET salary_net = 320000")
+    conn.commit(); conn.close()
+    h = {"X-Requested-With": "fetch"}
+
+    def cocher(compte):
+        return client.post("/mois/2026/10/virement", data={"csrf": t, "account": compte, "kind": "debut"}, headers=h).get_json()
+
+    page = client.get("/mois/2026/10").get_data(as_text=True)
+    assert 'data-remaining="320000"' in page                       # rien de coché : tout le salaire
+    r = cocher("Compte joint")                                     # nourriture : 400 €
+    assert r == {"done": True, "left": 4, "sent": 40000, "remaining": 280000}
+    r = cocher("Revolut")                                          # argent de poche : 200 €
+    assert r["remaining"] == 260000 and r["left"] == 3
+    assert 'data-remaining="260000"' in client.get("/mois/2026/10").get_data(as_text=True)
+    assert cocher("Revolut")["remaining"] == 280000                # décocher rend le montant
+    # Le virement de fin de mois (matelas) ne part pas du salaire.
+    r = client.post("/mois/2026/10/virement", data={"csrf": t, "account": "Livret A LCL", "kind": "fin"}, headers=h).get_json()
+    assert r["remaining"] == 280000
+    # Tout cocher : il reste ce qui revient au compte du salaire (postes LCL du modèle : 1 090 €).
+    for compte in ("Boursorama", "Revolut", "N26", "Livret A LCL"):
+        r = cocher(compte)
+    assert r["left"] == 0 and r["remaining"] == 109000

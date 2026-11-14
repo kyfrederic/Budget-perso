@@ -245,6 +245,12 @@ progress.bar::-moz-progress-bar, td.bar progress::-moz-progress-bar { background
 .virements li.done > div, .virements li.done .amount { opacity: .5; }
 .virements li.done > div b { text-decoration: line-through; }
 
+.salary-left { background: var(--leaf-bg); border-radius: var(--radius-s); padding: var(--s4); margin-bottom: var(--s2); }
+.salary-left p { margin: 0; }
+.salary-big { font-size: 2rem; font-weight: 800; letter-spacing: -.02em; line-height: 1.15; margin: 2px 0 var(--s2) !important; white-space: nowrap; }
+.salary-left progress.bar { margin-bottom: var(--s2); background: var(--card); }
+.salary-left progress.bar::-webkit-progress-bar { background: var(--card); }
+
 /* ---------- Suggestions ---------- */
 .sugg { background: var(--clay-bg); border-color: transparent; }
 .sugg p { margin-bottom: var(--s3); }

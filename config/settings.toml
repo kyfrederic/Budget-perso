@@ -75,3 +75,32 @@ description = "Salaire, assurances, carburant, emprunt"
 nom = "Livret A LCL"
 couleur = "#2e7d32"
 description = "Épargne"
+
+# Import unique des fichiers MOIS_SOLO.xlsx (flask --app budget import-excel).
+[import]
+# Compte du matelas (poste « Reserve »). Décision : N26, même si Excel le range ailleurs.
+compte_reserve = "N26"
+# Compte par défaut d'un poste absent de l'onglet « Depences personnelles ».
+compte_defaut = "LCL"
+
+# Titre de bloc dans l'onglet « Depences personnelles » -> compte de l'appli.
+[import.comptes]
+"Compte LCL" = "LCL"
+"Bourso perso" = "Boursorama"
+"Compte Revolut" = "Revolut"
+"Bourso joint" = "Compte joint"
+"Compte N26" = "N26"
+"Cantine boulot" = "N26"
+
+# Postes renommés en cours d'année : ancien nom -> nom actuel.
+[import.alias]
+"Abonnement chatGPT" = "Abonnement chatGPT/claude"
+
+# Catégorie imposée, prioritaire sur l'onglet « 50-30-20 ».
+# Rembourser un prêt n'est pas épargner : il ne doit pas gonfler le taux d'épargne.
+[import.categories]
+"prêt conso" = "besoins"
+
+# Compte imposé pour un poste, prioritaire sur l'onglet « Depences personnelles ».
+[import.comptes_postes]
+"Livret A" = "Livret A LCL"

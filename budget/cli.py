@@ -51,6 +51,29 @@ def register(app) -> None:
             raise click.ClickException(str(exc)) from exc
         click.echo(f"{n} postes chargés depuis {path}.")
 
+    @app.cli.command("import-excel")
+    @click.argument("dossier", type=click.Path(exists=True, file_okay=False))
+    @click.option("--annee", type=int, required=True, help="Année des fichiers (ex. 2026).")
+    @click.option("--ecrire", is_flag=True, help="Écrit dans la base. Sans cette option : simple aperçu.")
+    def import_excel(dossier, annee, ecrire):
+        """Importe les fichiers MOIS_SOLO.xlsx de DOSSIER (base vide exigée)."""
+        from . import importer
+
+        settings = current_app.config["SETTINGS"]
+        config = importer.load_config(current_app.config["SETTINGS_FILE"])
+        try:
+            months = importer.read_folder(dossier, annee, config)
+            postes = importer.build_postes(months, config, {c.nom for c in settings.comptes})
+            click.echo(importer.report(months, postes))
+            if not ecrire:
+                click.echo("\nAperçu seulement, rien n'est écrit. Ajoute --ecrire pour importer.")
+                return
+            conn = _conn()
+            importer.apply(conn, dbmod.ensure_user(conn), months, postes)
+        except ValueError as exc:
+            raise click.ClickException(str(exc)) from exc
+        click.echo(f"\nImport terminé : {len(months)} mois, {len(postes)} postes.")
+
     @app.cli.command("backup")
     @click.argument("destination", type=click.Path())
     def backup(destination):

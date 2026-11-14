@@ -5,7 +5,7 @@ Cahier des charges et décisions : [CLAUDE.md](CLAUDE.md). Ce dépôt contient l
 
 ## Ce que fait la V1
 
-- **Mois** : épargne du mois et matelas en tête, virements par compte à cocher quand ils sont faits, prévu et réel par poste, part de Laetitia pour information.
+- **Mois** : épargne du mois et matelas en tête, virements par compte à cocher quand ils sont faits, avec le reste du salaire qui descend à chaque case cochée, prévu et réel par poste, part de Laetitia pour information.
 - **Matelas** : reste = 500 € − dépassements + économies ; alerte quand il ne suffit plus.
 - **Nouveau mois** : copie du mois précédent, saisie du salaire, du net imposable et du prélèvement à la source.
 - **Propositions d'ajustement** (hausse ou baisse), à accepter ou refuser.
@@ -13,7 +13,16 @@ Cahier des charges et décisions : [CLAUDE.md](CLAUDE.md). Ce dépôt contient l
 - **Calendrier** des prélèvements aux couleurs des banques, **chèques** par mois prévu.
 - **Crédits** : reste dû mois par mois et objectif de date.
 
-L'import des fichiers Excel n'est pas encore écrit : il le sera sur les vrais fichiers.
+## Import des fichiers Excel
+
+À faire une seule fois, sur une base vide (à la place de `charger-modele`) :
+
+```bash
+flask --app budget import-excel /chemin/des/fichiers --annee 2026            # aperçu, rien n'est écrit
+flask --app budget import-excel /chemin/des/fichiers --annee 2026 --ecrire   # import
+```
+
+Le dossier contient les `MOIS_SOLO.xlsx`. L'aperçu liste les mois, les postes avec leur compte et leur catégorie, et les crédits ; l'import s'arrête si le total d'un mois ne correspond pas à celui d'Excel. Les correspondances (comptes, postes renommés, catégories imposées) se règlent dans le bloc `[import]` de `config/settings.toml`.
 
 ## Essai en local
 
@@ -52,7 +61,10 @@ Non testé dans un vrai conteneur à ce stade (pas de Docker dans l'environnemen
    mkdir -p ../instance && chown 10001 ../instance
    docker compose up -d --build                 # Caddy obtient le certificat HTTPS tout seul
    docker compose exec app flask --app budget set-password
+   # puis, au choix : le modèle d'exemple…
    docker compose exec app flask --app budget charger-modele
+   # …ou tes fichiers Excel, copiés dans ../instance/excel (monté dans /data/excel)
+   docker compose exec app flask --app budget import-excel /data/excel --annee 2026 --ecrire
    ```
 4. Sur le téléphone : ouvrir le site puis « Ajouter à l'écran d'accueil ».
 
