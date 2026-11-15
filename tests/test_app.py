@@ -207,3 +207,78 @@ def test_reste_du_salaire(app, client):
     for compte in ("Boursorama", "Revolut", "N26", "Livret A LCL"):
         r = cocher(compte)
     assert r["left"] == 0 and r["remaining"] == 109000
+
+
+def _photo(texte="TOTAL 62,00"):
+    import io
+    from PIL import Image, ImageDraw
+    img = Image.new("RGB", (400, 200), "white")
+    ImageDraw.Draw(img).text((20, 80), texte, fill="black")
+    buf = io.BytesIO()
+    img.save(buf, "JPEG")
+    buf.seek(0)
+    return buf
+
+
+def test_achats(app, client, tmp_path):
+    seed(app)
+    t = login(client)
+    poste = q(app, "SELECT id FROM postes WHERE name = 'Argent de poche'")[0]["id"]
+
+    # Imprévu sur le matelas : le reste du matelas baisse.
+    r = client.post("/mois/2026/10/achat", data={"csrf": t, "label": "Resto", "amount": "62", "bought_on": "2026-10-14", "target": "matelas"})
+    assert r.status_code == 302
+    import html
+    page = html.unescape(client.get("/mois/2026/10").get_data(as_text=True))
+    assert "Resto" in page and 'data-count="43800"' in page          # 500 − 62
+
+    # Achat sur un poste : ajouté à son réel ; un deuxième s'additionne.
+    for montant in ("30", "12,50"):
+        client.post("/mois/2026/10/achat", data={"csrf": t, "label": "Ciné", "amount": montant, "target": f"poste:{poste}"})
+    reel = lambda: q(app, "SELECT l.actual FROM lines l WHERE l.poste_id = ?", poste)[0]["actual"]
+    assert reel() == 4250
+    # Supprimer rend le montant ; au dernier, le poste redevient « non saisi ».
+    ids = [r["id"] for r in q(app, "SELECT id FROM purchases WHERE poste_id = ? ORDER BY id", poste)]
+    client.post(f"/achats/{ids[0]}/supprimer", data={"csrf": t})
+    assert reel() == 1250
+    client.post(f"/achats/{ids[1]}/supprimer", data={"csrf": t})
+    assert reel() is None
+
+    # Refus : montant nul, poste inconnu.
+    assert client.post("/mois/2026/10/achat", data={"csrf": t, "label": "x", "amount": "0"}).status_code == 400
+    assert client.post("/mois/2026/10/achat", data={"csrf": t, "label": "x", "amount": "5", "target": "poste:9999"}).status_code == 400
+
+
+def test_photo_du_ticket(app, client, monkeypatch):
+    from budget import receipt
+    seed(app)
+    t = login(client)
+    monkeypatch.setattr(receipt, "ocr", lambda img: receipt.Reading(amount=6200, bought_on="2026-10-14", label="Le Bistrot"))
+    r = client.post("/mois/2026/10/achat/photo", data={"csrf": t, "photo": (_photo(), "ticket.jpg")}, content_type="multipart/form-data")
+    assert r.status_code == 302
+    loc = r.headers["Location"]
+    assert "montant=6200" in loc and "lu=oui" in loc
+    token = re.search(r"photo=([0-9a-f]{32})", loc).group(1)
+    page = client.get(loc).get_data(as_text=True)
+    assert 'value="62"' in page and "Le Bistrot" in page and 'value="2026-10-14"' in page
+
+    # La photo n'est servie qu'à un utilisateur connecté.
+    assert client.get(f"/tickets/{token}.jpg").status_code == 200
+    anonyme = app.test_client()
+    assert anonyme.get(f"/tickets/{token}.jpg").status_code == 302
+    assert client.get("/tickets/" + "0" * 32 + ".jpg").status_code == 404
+    assert client.get("/tickets/..%2Fbudget.sqlite.jpg").status_code == 404
+
+    # Rien n'est enregistré avant confirmation ; puis l'achat garde sa photo.
+    assert q(app, "SELECT COUNT(*) n FROM purchases")[0]["n"] == 0
+    client.post("/mois/2026/10/achat", data={"csrf": t, "label": "Le Bistrot", "amount": "62,00", "target": "matelas", "photo": token})
+    pu = q(app, "SELECT * FROM purchases")[0]
+    assert pu["photo"] == token and pu["amount"] == 6200
+    # Supprimer l'achat supprime aussi la photo.
+    client.post(f"/achats/{pu['id']}/supprimer", data={"csrf": t})
+    assert client.get(f"/tickets/{token}.jpg").status_code == 404
+
+    # Un fichier qui n'est pas une image est refusé.
+    import io
+    r = client.post("/mois/2026/10/achat/photo", data={"csrf": t, "photo": (io.BytesIO(b"pas une image"), "x.jpg")}, content_type="multipart/form-data")
+    assert r.status_code == 400

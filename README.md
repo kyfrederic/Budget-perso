@@ -6,7 +6,8 @@ Cahier des charges et décisions : [CLAUDE.md](CLAUDE.md). Ce dépôt contient l
 ## Ce que fait la V1
 
 - **Mois** : épargne du mois et matelas en tête, virements par compte à cocher quand ils sont faits, avec le reste du salaire qui descend à chaque case cochée, prévu et réel par poste, part de Laetitia pour information.
-- **Matelas** : reste = 500 € − dépassements + économies ; alerte quand il ne suffit plus.
+- **Matelas** : reste = 500 € − dépassements − imprévus + économies (créditées en fin de mois) ; alerte quand il ne suffit plus.
+- **Achats** : un imprévu payé avec le matelas, ou un achat noté sur un poste ; **photo du ticket de caisse** avec lecture automatique du montant, à confirmer.
 - **Nouveau mois** : copie du mois précédent, saisie du salaire, du net imposable et du prélèvement à la source.
 - **Propositions d'ajustement** (hausse ou baisse), à accepter ou refuser.
 - **Analyse** : constats et pistes, 50-30-20, taux d'épargne, crédits.
@@ -34,6 +35,12 @@ export BUDGET_DEV=1                      # autorise http://localhost (jamais en 
 .venv/bin/flask --app budget run
 .venv/bin/python -m pytest                     # tests
 ```
+
+## Lecture des tickets
+
+La lecture se fait sur le serveur avec [Tesseract](https://github.com/tesseract-ocr/tesseract), sans service tiers. Le conteneur l'installe. Hors Docker : `apt install tesseract-ocr tesseract-ocr-fra`. Sans Tesseract, la photo est gardée et le montant se saisit à la main.
+
+Les photos sont réencodées (métadonnées retirées), rangées dans `instance/tickets/`, servies seulement à l'utilisateur connecté et incluses dans la sauvegarde. Formats acceptés : JPEG, PNG, WebP, 10 Mo au plus.
 
 ## Configuration
 

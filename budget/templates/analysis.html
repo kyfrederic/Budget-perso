@@ -11,9 +11,25 @@
 <section class="tiles four">
   <div class="tile"><span>Salaire net</span><b>{{ row.salary_net|eur }}</b></div>
   <div class="tile"><span>Budget prévu</span><b>{{ summary.total_budget|eur }}</b></div>
-  <div class="tile {% if summary.deficit %}bad{% endif %}"><span>Matelas</span><b>{{ summary.matelas_rest|eur }}</b><small>dépassements {{ summary.overruns|eur }} · économies {{ summary.savings|eur }}</small></div>
+  <div class="tile {% if summary.deficit %}bad{% endif %}"><span>Matelas</span><b>{{ summary.matelas_rest|eur }}</b><small>{% if summary.unplanned %}imprévus {{ summary.unplanned|eur(decimales=False) }} · {% endif %}dépassements {{ summary.overruns|eur(decimales=False) }} · économies {{ summary.savings|eur(decimales=False) }}</small></div>
   <div class="tile hero-tile"><span>Épargne du mois</span><b data-count="{{ summary.epargne_mois if summary.epargne_mois is not none else 0 }}">{{ summary.epargne_mois|eur(decimales=False) }}</b><small>{% if summary.taux_epargne is not none %}taux d'épargne {{ '%.0f'|format(summary.taux_epargne) }} % (avec l'épargne programmée){% endif %}</small></div>
 </section>
+
+{% if summary.reserve %}
+<section class="card">
+  <h2>Où est passé le matelas</h2>
+  <table class="plain">
+    <tbody>
+      <tr><td>Matelas du mois</td><td class="num">{{ summary.reserve|eur }}</td></tr>
+      {% for u in m.unplanned %}<tr><td class="indent">Imprévu : {{ u.label }}</td><td class="num">{{ (-u.amount)|eur }}</td></tr>{% endfor %}
+      {% if summary.overruns %}<tr><td>Dépassements de postes</td><td class="num">{{ (-summary.overruns)|eur }}</td></tr>{% endif %}
+      {% if summary.savings and summary.savings_counted %}<tr><td>Économies sur d'autres postes</td><td class="num">{{ summary.savings|eur(signe=True) }}</td></tr>
+      {% elif summary.savings %}<tr><td class="muted">Postes pas encore entièrement dépensés ({{ summary.savings|eur(decimales=False) }}) : comptés en économies à la fin du mois</td><td class="num muted">—</td></tr>{% endif %}
+      <tr><td><b>Reste, viré en épargne en fin de mois</b></td><td class="num"><b>{{ summary.matelas_rest|eur }}</b></td></tr>
+    </tbody>
+  </table>
+</section>
+{% endif %}
 
 <section class="card">
   <h2>Répartition 50-30-20</h2>

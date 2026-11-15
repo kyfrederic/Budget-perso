@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 import sqlite3
+from datetime import date
 
 from .money import month_index, prev_month
-from .rules import Line, Month
+from .rules import Line, Month, Unplanned
 
 LINE_SQL = """
 SELECT l.id AS line_id, l.planned, l.actual, l.info_partner,
@@ -35,7 +36,15 @@ def month_row(db, user_id: int, year: int, month: int):
 
 def load_month(db, row) -> Month:
     lines = [_line(r) for r in db.execute(LINE_SQL, (row["id"],))]
-    return Month(row["year"], row["month"], row["salary_net"], lines)
+    unplanned = [
+        Unplanned(r["label"], r["amount"], r["category"])
+        for r in db.execute(
+            "SELECT label, amount, category FROM purchases WHERE month_id = ? AND poste_id IS NULL", (row["id"],)
+        )
+    ]
+    today = date.today()
+    closed = month_index(row["year"], row["month"]) < month_index(today.year, today.month)
+    return Month(row["year"], row["month"], row["salary_net"], lines, unplanned, closed)
 
 
 def list_months(db, user_id: int) -> list:
@@ -154,3 +163,52 @@ def toggle_transfer(db, month_id: int, account_id: int, kind: str) -> bool:
         (month_id, account_id, kind),
     )
     return True
+
+
+def purchases(db, month_id: int) -> list:
+    """Achats du mois, les plus récents d'abord, avec le nom du poste s'il y en a un."""
+    return db.execute(
+        "SELECT pu.*, p.name AS poste, a.name AS account FROM purchases pu "
+        "LEFT JOIN postes p ON p.id = pu.poste_id LEFT JOIN accounts a ON a.id = p.account_id "
+        "WHERE pu.month_id = ? ORDER BY COALESCE(pu.bought_on, pu.created_at) DESC, pu.id DESC",
+        (month_id,),
+    ).fetchall()
+
+
+def add_purchase(db, month_id: int, label: str, amount: int, bought_on, poste_id, category: str, photo) -> int:
+    """Enregistre un achat. Sur un poste, son montant s'ajoute au réel du poste."""
+    if poste_id is not None:
+        cur = db.execute(
+            "UPDATE lines SET actual = COALESCE(actual, 0) + ? WHERE month_id = ? AND poste_id = ?",
+            (amount, month_id, poste_id),
+        )
+        if cur.rowcount == 0:
+            raise ValueError("Ce poste n'est pas dans le budget de ce mois.")
+    return db.execute(
+        "INSERT INTO purchases (month_id, label, amount, bought_on, poste_id, category, photo) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (month_id, label, amount, bought_on, poste_id, category, photo),
+    ).lastrowid
+
+
+def delete_purchase(db, purchase_id: int, user_id: int):
+    """Supprime un achat et rend son montant au poste. Renvoie la ligne supprimée (ou None)."""
+    pu = db.execute(
+        "SELECT pu.* FROM purchases pu JOIN months m ON m.id = pu.month_id WHERE pu.id = ? AND m.user_id = ?",
+        (purchase_id, user_id),
+    ).fetchone()
+    if pu is None:
+        return None
+    db.execute("DELETE FROM purchases WHERE id = ?", (purchase_id,))
+    if pu["poste_id"] is not None:
+        db.execute(
+            "UPDATE lines SET actual = MAX(COALESCE(actual, 0) - ?, 0) WHERE month_id = ? AND poste_id = ?",
+            (pu["amount"], pu["month_id"], pu["poste_id"]),
+        )
+        # Plus aucun achat et un réel revenu à zéro : le poste redevient « pas encore saisi ».
+        db.execute(
+            "UPDATE lines SET actual = NULL WHERE month_id = ? AND poste_id = ? AND actual = 0 AND NOT EXISTS "
+            "(SELECT 1 FROM purchases WHERE month_id = ? AND poste_id = ?)",
+            (pu["month_id"], pu["poste_id"], pu["month_id"], pu["poste_id"]),
+        )
+    return pu

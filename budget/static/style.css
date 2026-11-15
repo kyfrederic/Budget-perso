@@ -29,6 +29,7 @@
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 260ms; animation-timing-function: var(--ease); }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
 body {
   margin: 0; background: var(--bg); color: var(--fg);
@@ -251,6 +252,33 @@ progress.bar::-moz-progress-bar, td.bar progress::-moz-progress-bar { background
 .salary-left progress.bar { margin-bottom: var(--s2); background: var(--card); }
 .salary-left progress.bar::-webkit-progress-bar { background: var(--card); }
 
+/* ---------- Achats ---------- */
+.add-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s4); margin: 0 0 var(--s3); }
+.btn.primary-btn { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+.btn.primary-btn:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
+.achats { list-style: none; margin: 0; padding: 0; }
+.achats li { display: flex; gap: var(--s3); align-items: center; padding: var(--s2) 0; }
+.achats li + li { border-top: 1px solid var(--line); }
+.achats li > div { flex: 1; min-width: 0; }
+.achats small { display: block; font-size: .8125rem; }
+.achats form { margin: 0; }
+.achats .rm { width: 44px; height: 44px; padding: 0; border-radius: 50%; text-decoration: none; }
+.achats .rm:hover { color: var(--clay); background: var(--clay-bg); }
+.thumb { width: 44px; height: 44px; border-radius: 10px; overflow: hidden; flex: none; background: var(--leaf-bg); display: block; }
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+h2.sub { margin-top: var(--s5); }
+.photo-form { display: grid; gap: var(--s4); align-items: start; }
+.photo-form .note { margin-bottom: var(--s3); }
+.ticket { display: block; max-width: 220px; border-radius: var(--radius-s); overflow: hidden; border: 1px solid var(--line); }
+.ticket img { display: block; width: 100%; height: auto; max-height: 320px; object-fit: contain; background: var(--bg); }
+input[type=file] { padding: 8px; min-height: 48px; }
+input[type=file]::file-selector-button {
+  font: inherit; font-weight: 600; margin-right: var(--s3); padding: 6px 14px; border-radius: var(--pill);
+  border: 1.5px solid var(--line); background: var(--card); color: var(--fg); cursor: pointer;
+}
+.check-line { color: var(--fg); font-weight: 400; font-size: .9375rem; min-height: 44px; display: block; }
+h1.page small { font-size: 1rem; font-weight: 500; }
+
 /* ---------- Suggestions ---------- */
 .sugg { background: var(--clay-bg); border-color: transparent; }
 .sugg p { margin-bottom: var(--s3); }
@@ -296,6 +324,7 @@ table.plain tbody tr:last-child td { border-bottom: 0; }
 table.plain tbody tr { transition: background-color var(--fast) var(--ease); }
 table.plain tbody tr:hover { background: var(--bg); }
 .num { text-align: right !important; white-space: nowrap; }
+td.indent { padding-left: var(--s5) !important; color: var(--muted-fg); }
 td.bar { width: 28%; min-width: 60px; }
 
 /* ---------- Calendrier ---------- */
@@ -351,6 +380,7 @@ td.bar { width: 28%; min-width: 60px; }
   .top .desk a[aria-current] { color: var(--primary); background: var(--card); }
   .top .logout { display: block; }
   .row3 { grid-template-columns: repeat(3, 1fr); }
+  .photo-form:has(.ticket) { grid-template-columns: 220px 1fr; }
   .hero { padding: var(--s6); }
   .hero-big { font-size: 3.4rem; }
   .hero-sub { max-width: none; }

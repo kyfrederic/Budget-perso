@@ -7,7 +7,7 @@
 {# ---- En premier : l'épargne du mois et le matelas ---- #}
 {% set C = 226.2 %}
 {% set frac = ([[summary.matelas_rest, 0]|max, summary.reserve]|min / summary.reserve) if summary.reserve else 0 %}
-<section class="hero {% if summary.deficit %}tight{% endif %}">
+<section class="hero {% if summary.reserve and summary.matelas_rest <= 0 %}tight{% endif %}">
   <div>
     <p class="hero-label">Épargne du mois</p>
     {% if summary.epargne_mois is not none %}
@@ -32,14 +32,23 @@
   <div><dt>Épargne à réception</dt><dd>{{ summary.epargne_debut|eur(decimales=False) }}</dd></div>
 </dl>
 
+<p class="add-row">
+  <a class="btn primary-btn" href="{{ url_for('views.purchase', year=m.year, month=m.month) }}">{{ icon('ajouter', 18) }} Ajouter un achat</a>
+  {% if summary.reserve and (summary.unplanned or summary.overruns or (summary.savings and summary.savings_counted)) %}
+  <span class="muted small">Matelas : {{ summary.reserve|eur(decimales=False) }}{% if summary.unplanned %} − {{ summary.unplanned|eur(decimales=False) }} d'imprévus{% endif %}{% if summary.overruns %} − {{ summary.overruns|eur(decimales=False) }} de dépassements{% endif %}{% if summary.savings and summary.savings_counted %} + {{ summary.savings|eur(decimales=False) }} d'économies{% endif %}</span>
+  {% endif %}
+</p>
+
 {# ---- Ce qui demande ton attention ---- #}
 {% if summary.epargne_debut is not none and summary.epargne_debut < 0 %}
 <p class="note alert">Le budget dépasse le salaire de {{ (-summary.epargne_debut)|eur }}.</p>
 {% endif %}
 {% if summary.deficit > 0 %}
 <p class="note alert">Les dépassements dépassent le matelas de {{ summary.deficit|eur }} : le matelas ne suffit plus, risque de découvert.</p>
-{% elif summary.overruns > 0 %}
-<p class="note calm">Le matelas a absorbé {{ (summary.reserve - summary.matelas_rest)|eur(decimales=False) if summary.matelas_rest < summary.reserve else summary.overruns|eur(decimales=False) }} de dépassement. Tout va bien, il est là pour ça.</p>
+{% elif summary.reserve and summary.matelas_rest == 0 %}
+<p class="note warn">Le matelas a servi en entier ce mois-ci. Rien à virer en épargne en fin de mois, et le prochain achat imprévu passerait au-delà.</p>
+{% elif summary.overruns > 0 or summary.unplanned > 0 %}
+<p class="note calm">Le matelas a absorbé {{ (summary.reserve - summary.matelas_rest)|eur(decimales=False) if summary.matelas_rest < summary.reserve else (summary.overruns + summary.unplanned)|eur(decimales=False) }}. Tout va bien, il est là pour ça.</p>
 {% endif %}
 {% for c in overdue %}
 <p class="note warn">Chèque de {{ c.amount|eur }} pour {{ c.payee }}, prévu en {{ month_label(c.year, c.month) }}, toujours en attente : as-tu oublié de le déposer ? <a href="{{ url_for('views.cheques') }}">Voir les chèques</a></p>
@@ -62,6 +71,35 @@
   </div>
 </section>
 {% endfor %}
+
+{# ---- Achats du mois ---- #}
+{% macro achat(pu) %}
+<li>
+  {% if pu.photo %}<a class="thumb" href="{{ url_for('views.ticket_photo', token=pu.photo) }}" aria-label="Voir le ticket de {{ pu.label }}"><img src="{{ url_for('views.ticket_photo', token=pu.photo) }}" alt="" loading="lazy" width="44" height="44"></a>
+  {% else %}<span class="thumb none" aria-hidden="true"></span>{% endif %}
+  <div><b>{{ pu.label }}</b>
+    <small class="muted">{% if pu.bought_on %}{{ pu.bought_on|datefr }}{% endif %}{% if pu.poste %} · {{ pu.poste }}{% elif pu.category == 'besoins' %} · besoin{% endif %}</small></div>
+  <b class="amount">{{ pu.amount|eur }}</b>
+  <form method="post" action="{{ url_for('views.purchase_delete', purchase_id=pu.id) }}">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <button class="link rm" aria-label="Supprimer {{ pu.label }}" title="Supprimer cet achat">{{ icon('retirer', 18) }}</button>
+  </form>
+</li>
+{% endmacro %}
+{% set imprevus = purchases|selectattr('poste_id', 'none')|list %}
+{% set sur_postes = purchases|rejectattr('poste_id', 'none')|list %}
+<section class="card" id="achats">
+  <h2>Imprévus payés avec le matelas <span class="count">{% if imprevus %}{{ summary.unplanned|eur }}{% else %}aucun{% endif %}</span></h2>
+  {% if imprevus %}
+  <ul class="achats">{% for pu in imprevus %}{{ achat(pu) }}{% endfor %}</ul>
+  {% else %}
+  <p class="muted">Un resto, un achat qui n'était pas prévu ? Ajoute-le : il sera pris sur le matelas.</p>
+  {% endif %}
+  {% if sur_postes %}
+  <h2 class="sub">Achats notés sur un poste <span class="count">{{ sur_postes|sum(attribute='amount')|eur }}</span></h2>
+  <ul class="achats">{% for pu in sur_postes %}{{ achat(pu) }}{% endfor %}</ul>
+  {% endif %}
+</section>
 
 {# ---- Virements à cocher ---- #}
 {% macro check(account, kind, is_done, label) %}

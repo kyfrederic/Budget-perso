@@ -38,11 +38,23 @@ class Line:
 
 
 @dataclass
+class Unplanned:
+    """Achat imprévu payé avec le matelas."""
+    label: str
+    amount: int
+    category: str = "envies"   # envies | besoins
+
+
+@dataclass
 class Month:
     year: int
     month: int
     salary_net: int | None
     lines: list[Line] = field(default_factory=list)
+    unplanned: list[Unplanned] = field(default_factory=list)
+    # Mois terminé : les économies des postes sont acquises. Tant qu'il est en cours,
+    # un poste sous son prévu n'a simplement pas fini d'être dépensé.
+    closed: bool = True
 
     @property
     def idx(self) -> int:
@@ -63,7 +75,7 @@ class Summary:
     reserve: int
     overruns: int          # somme des dépassements
     savings: int           # somme des économies (postes sous leur prévu)
-    matelas_rest: int      # reserve − dépassements + économies (peut être négatif)
+    matelas_rest: int      # reserve − dépassements + économies − imprévus (peut être négatif)
     to_savings_end: int    # reste du matelas viré en épargne en fin de mois
     deficit: int           # ce que le matelas n'a pas pu absorber
     epargne_debut: int | None   # salaire − budget
@@ -73,6 +85,8 @@ class Summary:
     virements: list[Virement]
     n_lines: int
     n_entered: int
+    unplanned: int = 0     # somme des achats imprévus payés avec le matelas
+    savings_counted: bool = True   # False tant que le mois est en cours (économies pas encore acquises)
 
     @property
     def complete(self) -> bool:
@@ -90,7 +104,8 @@ def summarize(month: Month, settings: Settings) -> Summary:
     diffs = [l.diff for l in normal if l.diff is not None]
     overruns = sum(d for d in diffs if d > 0)
     savings = -sum(d for d in diffs if d < 0)
-    rest = reserve - overruns + savings
+    unplanned = sum(u.amount for u in month.unplanned)
+    rest = reserve - overruns - unplanned + (savings if month.closed else 0)
     to_savings_end = max(0, rest)
     deficit = max(0, -rest)
 
@@ -116,6 +131,8 @@ def summarize(month: Month, settings: Settings) -> Summary:
         virements=_virements(month, epargne_debut, settings),
         n_lines=len(normal),
         n_entered=len(diffs),
+        unplanned=unplanned,
+        savings_counted=month.closed,
     )
 
 
@@ -158,6 +175,8 @@ def split_503020(month: Month, summary: Summary, settings: Settings) -> list[dic
         if l.is_reserve:
             continue
         montants[l.category] += l.actual if l.actual is not None else l.planned
+    for u in month.unplanned:
+        montants[u.category] += u.amount
     if summary.epargne_mois is not None:
         montants["epargne"] += max(0, summary.epargne_mois)
     base = month.salary_net or sum(montants.values())
@@ -377,16 +396,33 @@ def analysis_notes(
         add("alert", f"Le budget dépasse le salaire de {format_eur(-summary.epargne_debut)} : "
                      "aucune épargne possible ce mois-ci, revoir les postes.")
 
+    detail = []
+    if summary.unplanned:
+        detail.append(f"{format_eur(summary.unplanned, decimales=False)} d'imprévus")
+    if summary.overruns:
+        detail.append(f"{format_eur(summary.overruns, decimales=False)} de dépassements")
+    if summary.savings and detail and summary.savings_counted:
+        detail.append(f"{format_eur(summary.savings, decimales=False)} d'économies en face")
+    detail_txt = f" : {', '.join(detail)}" if detail else ""
     if summary.deficit > 0:
-        add("alert", f"Le matelas n'a pas suffi : {format_eur(summary.deficit)} de dépassement "
-                     "non couvert (risque de découvert).")
-    elif summary.complete and summary.reserve:
+        add("alert", f"Le matelas n'a pas suffi{detail_txt}. Il manque {format_eur(summary.deficit)} "
+                     "(risque de découvert).")
+    elif summary.reserve and summary.matelas_rest == 0:
+        add("warn", f"Le matelas a servi en entier ce mois-ci{detail_txt}. Rien à virer en épargne en fin de mois.")
+    elif summary.reserve and (summary.complete or summary.unplanned):
         if summary.matelas_rest >= summary.reserve:
             add("ok", f"Matelas intact : {format_eur(summary.to_savings_end)} à virer en épargne.")
         else:
             utilise = summary.reserve - summary.matelas_rest
-            add("info", f"Matelas entamé de {format_eur(utilise)} ; il reste "
+            add("info", f"Matelas entamé de {format_eur(utilise)}{detail_txt} ; il reste "
                         f"{format_eur(summary.to_savings_end)} à virer en épargne.")
+    if month.unplanned:
+        gros = sorted(month.unplanned, key=lambda u: -u.amount)[:3]
+        add("info", "Plus gros imprévus : " + ", ".join(f"{u.label} ({format_eur(u.amount, decimales=False)})" for u in gros) + ".")
+    if (previous and summary.reserve and previous.reserve
+            and summary.unplanned * 2 > summary.reserve and previous.unplanned * 2 > previous.reserve):
+        add("info", "Les imprévus ont pris plus de la moitié du matelas deux mois de suite : "
+                    "ceux qui reviennent mériteraient leur propre poste dans le budget.")
 
     depass = sorted(
         (l for l in month.lines if (l.diff or 0) > 0 and _significant(l.planned, l.actual, settings) == 1),
@@ -449,7 +485,7 @@ def analysis_notes(
 
 
 __all__ = [
-    "CATEGORIES", "CATEGORIES_LABEL", "Line", "Month", "Proposal", "Summary", "Virement",
+    "CATEGORIES", "CATEGORIES_LABEL", "Line", "Month", "Proposal", "Summary", "Unplanned", "Virement",
     "analysis_notes", "compute_proposals", "credit_status", "round_to", "seasonal_alerts",
     "split_503020", "summarize", "MOIS_FR",
 ]

@@ -54,6 +54,13 @@ empattements, plus lisible pour des chiffres).
 - L'écran du mois s'ouvre sur l'épargne du mois, en grand.
 - Un écart porte toujours son signe (`+` ou `−`), un message porte une icône : la couleur ne fait que renforcer.
 
+## Achats et matelas
+
+- Le bouton « Ajouter un achat » est sous le bandeau de l'épargne ; sur téléphone, le champ photo ouvre l'appareil photo.
+- Écran d'ajout : la photo et son résultat de lecture en haut, puis montant, date, libellé, « Payé avec » (matelas en premier, postes groupés par compte).
+- Matelas à zéro : bandeau et anneau en ton argile, phrase posée (« Le matelas a servi en entier ce mois-ci »). Rouge seulement en dessous de zéro.
+- Un imprévu sans photo montre une pastille vide de la même taille que la miniature, pour garder l'alignement.
+
 ## Mouvement
 
 | Élément | Comportement | Durée |

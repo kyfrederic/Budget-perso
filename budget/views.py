@@ -5,10 +5,12 @@ import calendar
 import re
 from datetime import date
 
-from flask import (Blueprint, Response, abort, current_app, flash, g, redirect, render_template,
-                   request, url_for)
+from pathlib import Path
 
-from . import rules, store
+from flask import (Blueprint, Response, abort, current_app, flash, g, redirect, render_template,
+                   request, send_file, url_for)
+
+from . import receipt, rules, store
 from .db import get_db
 from .money import (MOIS_FR, from_index, month_index, month_label, next_month, parse_amount,
                     prev_month)
@@ -128,6 +130,7 @@ def month(year: int, month: int):
     progress = [l for l in ctx["m"].lines if l.diff is not None]
     return render_template(
         "month.html", **ctx, groups=groups, cheques=cheques, done=done, **state,
+        purchases=store.purchases(db, row["id"]),
         stays=[v for v in ctx["summary"].virements if v.kind == "reste"],
         progress=sorted(progress, key=lambda l: -(l.actual / l.planned if l.planned else 9)),
         reserve_account=next((l.account for l in ctx["m"].lines if l.is_reserve), None),
@@ -273,6 +276,124 @@ def months():
         m = store.load_month(db, row)
         out.append({"row": row, "summary": rules.summarize(m, settings())})
     return render_template("months.html", months=out)
+
+
+# ------------------------------------------------------------------ achats
+
+
+def _tickets() -> Path:
+    return Path(current_app.config["TICKETS_DIR"])
+
+
+def _iso_date(text: str | None) -> str | None:
+    if not text or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", text):
+        return None
+    try:
+        return date.fromisoformat(text).isoformat()
+    except ValueError:
+        return None
+
+
+@bp.route("/mois/<int:year>/<int:month>/achat/photo", methods=["POST"])
+def purchase_photo(year: int, month: int):
+    """Reçoit la photo d'un ticket, la lit, puis ouvre le formulaire pré-rempli."""
+    _month_or_404(year, month)
+    f = request.files.get("photo")
+    if f is None or not f.filename:
+        abort(400, "Aucune photo reçue.")
+    try:
+        img = receipt.prepare(f.read(receipt.MAX_BYTES + 1))
+    except receipt.ReceiptError as exc:
+        abort(400, str(exc))
+    db = get_db()
+    used = {r["photo"] for r in db.execute("SELECT photo FROM purchases WHERE photo IS NOT NULL")}
+    receipt.purge_orphans(_tickets(), used)
+    token = receipt.save(img, _tickets())
+    r = receipt.ocr(img)
+    args = {"photo": token, "lu": "absent" if not r.available else ("oui" if r.amount else "non")}
+    if r.amount:
+        args["montant"] = r.amount
+    if r.bought_on:
+        args["date"] = r.bought_on
+    if r.label:
+        args["libelle"] = r.label
+    return redirect(url_for("views.purchase", year=year, month=month, **args))
+
+
+@bp.route("/mois/<int:year>/<int:month>/achat", methods=["GET", "POST"])
+def purchase(year: int, month: int):
+    row = _month_or_404(year, month)
+    db = get_db()
+    m = store.load_month(db, row)
+    lines = [l for l in m.lines if not l.is_reserve]
+    if request.method == "POST":
+        label = request.form.get("label", "").strip()[:120]
+        amount = _amount("amount", "montant", required=True)
+        if not label or amount <= 0:
+            abort(400, "Il faut un libellé et un montant supérieur à zéro.")
+        target = request.form.get("target", "matelas")
+        poste_id = None
+        if target != "matelas":
+            poste_id = next((l.poste_id for l in lines if f"poste:{l.poste_id}" == target), None)
+            if poste_id is None:
+                abort(400, "Poste inconnu pour ce mois.")
+        token = request.form.get("photo") or None
+        if token and receipt.photo_path(_tickets(), token) is None:
+            token = None
+        category = "besoins" if "besoin" in request.form else "envies"
+        try:
+            store.add_purchase(db, row["id"], label, amount, _iso_date(request.form.get("bought_on")),
+                               poste_id, category, token)
+        except ValueError as exc:
+            abort(400, str(exc))
+        db.commit()
+        if poste_id is None:
+            flash(f"{label} : {rules.format_eur(amount)} pris sur le matelas.")
+        else:
+            name = next(l.name for l in lines if l.poste_id == poste_id)
+            flash(f"{label} : {rules.format_eur(amount)} ajoutés à {name}.")
+        return redirect(url_for("views.month", year=year, month=month) + "#achats")
+
+    token = request.args.get("photo")
+    if receipt.photo_path(_tickets(), token) is None:
+        token = None
+    today = date.today()
+    default_day = today if (today.year, today.month) == (year, month) else date(year, month, 1)
+    groups: dict[str, list] = {}
+    for l in lines:
+        groups.setdefault(l.account, []).append(l)
+    summary = rules.summarize(m, settings())
+    return render_template(
+        "purchase.html", row=row, m=m, groups=groups, summary=summary, photo=token,
+        read=request.args.get("lu") if token else None,
+        amount=request.args.get("montant", type=int),
+        label=(request.args.get("libelle") or "")[:120],
+        bought_on=_iso_date(request.args.get("date")) or default_day.isoformat(),
+    )
+
+
+@bp.route("/achats/<int:purchase_id>/supprimer", methods=["POST"])
+def purchase_delete(purchase_id: int):
+    db = get_db()
+    pu = store.delete_purchase(db, purchase_id, g.user_id)
+    if pu is None:
+        abort(404)
+    db.commit()
+    path = receipt.photo_path(_tickets(), pu["photo"])
+    if path is not None:
+        path.unlink(missing_ok=True)
+    mrow = db.execute("SELECT year, month FROM months WHERE id = ?", (pu["month_id"],)).fetchone()
+    flash(f"{pu['label']} supprimé.")
+    return redirect(url_for("views.month", year=mrow["year"], month=mrow["month"]) + "#achats")
+
+
+@bp.route("/tickets/<token>.jpg")
+def ticket_photo(token: str):
+    """Photo d'un ticket : jamais servie en fichier statique, connexion exigée."""
+    path = receipt.photo_path(_tickets(), token)
+    if path is None:
+        abort(404)
+    return send_file(path, mimetype="image/jpeg", max_age=0)
 
 
 # ----------------------------------------------------------- propositions

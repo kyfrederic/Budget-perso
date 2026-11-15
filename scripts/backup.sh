@@ -19,6 +19,8 @@ with dst:
 assert dst.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
 PY
 cp -r "$APP_DIR/config" "$TMP/config"
+# Photos des tickets de caisse.
+if [ -d "$APP_DIR/instance/tickets" ]; then cp -r "$APP_DIR/instance/tickets" "$TMP/tickets"; fi
 
 restic backup --tag budget "$TMP"
 restic forget --tag budget --keep-daily 14 --keep-weekly 8 --keep-monthly 24 --prune

@@ -178,12 +178,24 @@ L'onglet « Orthodontie » d'Excel est un exemple de projet d'achat ; une télé
 | Livret A | Le poste « Livret A » est rattaché au compte « Livret A LCL » et rejoint le virement d'épargne. |
 | Reste du salaire | À chaque virement coché, son montant est **retranché du salaire** : l'écran affiche ce qu'il reste sur LCL à cet instant, et ce qu'il restera quand tout sera fait. Le virement de fin de mois du matelas ne part pas du salaire et n'est pas compté. |
 
+### Décisions du 2026-11-15 (imprévus, achats, photo du ticket)
+
+| Sujet | Décision |
+|---|---|
+| Rôle du matelas | Il absorbe les dépassements **et les achats imprévus** (resto, achat hors budget). **Reste = 500 € − dépassements − imprévus + économies.** Complète la section 3. |
+| Économies en cours de mois | Elles ne sont créditées au matelas qu'**une fois le mois terminé** : avant, un poste sous son prévu n'a simplement pas fini d'être dépensé. Les dépassements et les imprévus, eux, comptent tout de suite. |
+| Achats | Saisis **un par un** (libellé, montant, date), imputés au **matelas (imprévu)** ou à **un poste**. Sur un poste, le montant s'ajoute au réel du poste, qui reste un total modifiable à la main (assouplit la section 4). |
+| Catégorie d'un imprévu | **Envies** par défaut, « besoin » au choix à la saisie. |
+| Matelas vide | Constat posé en ton argile ; le rouge n'apparaît que si le reste devient négatif. |
+| Photo du ticket | Lue **sur le serveur** par Tesseract (aucun service tiers). Le montant, la date et le commerçant sont des propositions, **toujours confirmées** avant d'enregistrer. La photo est gardée (réencodée, sans métadonnées) dans `instance/tickets/` et sauvegardée. |
+
 ## 13 ter. État de la V1
 
 - Stack : Flask + SQLite + pages côté serveur (voir `README.md` pour lancer, configurer et déployer).
 - Règles métier dans `budget/rules.py` (fonctions pures, testées dans `tests/test_rules.py`). Montants stockés en centimes.
 - **Design** : ambiance « Nature » (sauge et argile, toujours claire, animée), décrite dans `design-system/budget/MASTER.md`. Toute évolution d'écran part de ce fichier. CSS simple, police hébergée localement, mouvement dans `static/app.js`, pas de style ni de script en ligne (CSP). Le skill `ui-ux-pro-max` est installé dans `.claude/skills/`.
 - **Import Excel** : `flask --app budget import-excel DOSSIER --annee 2026` (aperçu), `--ecrire` pour importer dans une base vide. Lecture décrite en tête de `budget/importer.py`, correspondances dans `[import]` de `config/settings.toml`. Vérifié sur les 9 fichiers : totaux identiques à Excel.
+- **Achats et tickets** : `budget/receipt.py` (préparation de l'image, lecture, extraction du total), table `purchases`, écran `purchase.html`. Tesseract (`tesseract-ocr`, `tesseract-ocr-fra`) est installé par le `Dockerfile` ; sans lui, la saisie à la main fonctionne.
 - **Reste à faire en V1** : premier déploiement réel sur le VPS (import à y relancer, sauvegardes, test de restauration). Net imposable et prélèvement à la source de mars à novembre à saisir à la main (absents d'Excel).
 
 ## 14. Prochaines étapes

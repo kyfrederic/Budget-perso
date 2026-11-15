@@ -110,6 +110,22 @@ CREATE TABLE IF NOT EXISTS transfers_done (
     PRIMARY KEY (month_id, account_id, kind)
 );
 
+-- Achats saisis un par un (avec ou sans photo du ticket).
+-- poste_id NULL  : imprévu payé avec le matelas (réduit le reste du matelas) ;
+-- poste_id donné : le montant a été ajouté au réel de ce poste pour ce mois.
+CREATE TABLE IF NOT EXISTS purchases (
+    id         INTEGER PRIMARY KEY,
+    month_id   INTEGER NOT NULL REFERENCES months(id) ON DELETE CASCADE,
+    label      TEXT NOT NULL,
+    amount     INTEGER NOT NULL CHECK (amount > 0),
+    bought_on  TEXT,                 -- AAAA-MM-JJ
+    poste_id   INTEGER REFERENCES postes(id),
+    category   TEXT NOT NULL DEFAULT 'envies' CHECK (category IN ('envies','besoins')),
+    photo      TEXT,                 -- nom du fichier dans instance/tickets/
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_purchases_month ON purchases(month_id);
+
 CREATE TABLE IF NOT EXISTS login_attempts (
     ip TEXT NOT NULL,
     ts REAL NOT NULL

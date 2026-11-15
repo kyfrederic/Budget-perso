@@ -86,6 +86,19 @@
   document.querySelectorAll('progress[data-bar]').forEach(fillBar);
   document.querySelectorAll('form[data-transfer]').forEach(wireTransfer);
 
+  // Photo du ticket : dès qu'elle est choisie, elle part en lecture.
+  document.querySelectorAll('form[data-autosubmit]').forEach(function (form) {
+    var input = form.querySelector('input[type=file]'), btn = form.querySelector('[data-autosubmit-hide]');
+    if (!input) return;
+    if (btn) btn.hidden = true;
+    input.addEventListener('change', function () {
+      if (!input.files || !input.files.length) return;
+      var wait = form.querySelector('[data-reading]');
+      if (wait) wait.hidden = false;
+      form.submit();
+    });
+  });
+
   // Le message de confirmation s'efface tout seul.
   document.querySelectorAll('.flash').forEach(function (f) {
     setTimeout(function () {

@@ -1,5 +1,5 @@
 from budget.money import format_eur, month_index, parse_amount
-from budget.rules import (Line, Month, compute_proposals, credit_status, round_to,
+from budget.rules import (Line, Month, Unplanned, analysis_notes, compute_proposals, credit_status, round_to,
                           seasonal_alerts, split_503020, summarize)
 
 
@@ -192,3 +192,67 @@ def test_credit_objectif(settings):
     assert st["months_left"] == 2 and st["on_track"] is False   # 150/mois, il en faut 350
     st = credit_status("Renouvelable", "2027-06-30", bal, OCT)
     assert st["on_track"] is True
+
+
+# ------------------------------------------------- imprévus payés avec le matelas
+
+def avec_imprevus(*montants, **actuals):
+    m = mois(**actuals)
+    m.unplanned = [Unplanned(f"Achat {i}", E(v), "besoins" if i == 0 and v == 99 else "envies") for i, v in enumerate(montants)]
+    return m
+
+
+def test_imprevus_pris_sur_le_matelas(settings):
+    s = summarize(avec_imprevus(62, 120), settings)
+    assert s.unplanned == E(182)
+    assert s.matelas_rest == E(318) and s.to_savings_end == E(318)
+    assert s.epargne_mois == E(590 + 318)
+
+
+def test_imprevus_depassements_et_economies(settings):
+    # 500 − 70 de dépassement + 40 d'économie − 150 d'imprévus = 320
+    s = summarize(avec_imprevus(150, Nourriture=470, Électricité=110), settings)
+    assert s.matelas_rest == E(320)
+
+
+def test_matelas_vide_sans_alerte(settings):
+    m = avec_imprevus(300, 200)
+    s = summarize(m, settings)
+    assert s.matelas_rest == 0 and s.deficit == 0 and s.to_savings_end == 0
+    assert s.epargne_mois == E(590)                       # il ne reste que salaire − budget
+    notes = analysis_notes(m, s, split_503020(m, s, settings), [], None, 0, settings)
+    assert any("servi en entier" in n["text"] and n["level"] == "warn" for n in notes)
+    assert not any(n["level"] == "alert" for n in notes)   # le rouge reste réservé au dépassement
+
+
+def test_au_dela_du_matelas(settings):
+    m = avec_imprevus(300, 250)
+    s = summarize(m, settings)
+    assert s.matelas_rest == E(-50) and s.deficit == E(50)
+    notes = analysis_notes(m, s, split_503020(m, s, settings), [], None, 0, settings)
+    assert any(n["level"] == "alert" for n in notes)
+
+
+def test_imprevus_dans_le_503020(settings):
+    m = avec_imprevus(99, 60)                              # 99 € marqué « besoin », 60 € en envie
+    split = {x["key"]: x for x in split_503020(m, summarize(m, settings), settings)}
+    assert split["besoins"]["amount"] == E(1450 + 99)
+    assert split["envies"]["amount"] == E(260 + 60)
+    assert round(sum(x["pct"] for x in split.values())) == 100
+
+
+def test_mois_en_cours_les_economies_attendent(settings):
+    # 42 € de courses notés sur 400 € prévus : ce n'est pas 358 € d'économie tant que le mois court.
+    m = mois(Nourriture=42)
+    m.closed = False
+    s = summarize(m, settings)
+    assert s.savings == E(358) and s.savings_counted is False
+    assert s.matelas_rest == E(500)                    # ni gonflé, ni entamé
+    m.closed = True                                    # mois terminé : l'économie est acquise
+    assert summarize(m, settings).matelas_rest == E(858)
+
+
+def test_mois_en_cours_les_depassements_comptent_tout_de_suite(settings):
+    m = mois(Nourriture=470, Électricité=110)
+    m.closed = False
+    assert summarize(m, settings).matelas_rest == E(430)

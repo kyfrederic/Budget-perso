@@ -40,7 +40,9 @@ def create_app(test_config: dict | None = None) -> Flask:
         # BUDGET_DEV=1 uniquement pour un essai local en http://localhost.
         SESSION_COOKIE_SECURE=os.environ.get("BUDGET_DEV") != "1",
         SESSION_COOKIE_NAME="budget_session",
-        MAX_CONTENT_LENGTH=1024 * 1024,
+        TICKETS_DIR=str(instance / "tickets"),
+        # Assez pour une photo de ticket (10 Mo vérifiés dans la route) ; le reste est minuscule.
+        MAX_CONTENT_LENGTH=12 * 1024 * 1024,
     )
     if test_config:
         app.config.update(test_config)
