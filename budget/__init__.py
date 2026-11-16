@@ -27,11 +27,18 @@ def _secret_key(instance: Path) -> str:
 
 
 def create_app(test_config: dict | None = None) -> Flask:
-    instance = Path(os.environ.get("BUDGET_DATA_DIR", ROOT / "instance"))
+    on_vercel = bool(os.environ.get("VERCEL"))
+    # Sur Vercel le disque est en lecture seule (sauf /tmp) et rien n'y survit : tout va en base.
+    instance = Path(os.environ.get("BUDGET_DATA_DIR", "/tmp/budget" if on_vercel else ROOT / "instance"))
+    database_url = os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL")
+    if on_vercel and not database_url:
+        raise RuntimeError("DATABASE_URL manquant : ajoute l'intégration Neon (Postgres) au projet Vercel.")
+    if on_vercel and not os.environ.get("BUDGET_SECRET_KEY"):
+        raise RuntimeError("BUDGET_SECRET_KEY manquant : ajoute cette variable dans les réglages Vercel.")
     app = Flask(__name__, instance_path=str(instance))
     instance.mkdir(parents=True, exist_ok=True)
     app.config.update(
-        DATABASE=str(instance / "budget.sqlite"),
+        DATABASE=database_url or str(instance / "budget.sqlite"),
         SETTINGS_FILE=os.environ.get("BUDGET_SETTINGS", str(ROOT / "config" / "settings.toml")),
         MODELE_FILE=os.environ.get("BUDGET_MODELE", str(ROOT / "config" / "modele.toml")),
         SESSION_COOKIE_HTTPONLY=True,
@@ -40,7 +47,6 @@ def create_app(test_config: dict | None = None) -> Flask:
         # BUDGET_DEV=1 uniquement pour un essai local en http://localhost.
         SESSION_COOKIE_SECURE=os.environ.get("BUDGET_DEV") != "1",
         SESSION_COOKIE_NAME="budget_session",
-        TICKETS_DIR=str(instance / "tickets"),
         # Assez pour une photo de ticket (10 Mo vérifiés dans la route) ; le reste est minuscule.
         MAX_CONTENT_LENGTH=12 * 1024 * 1024,
     )

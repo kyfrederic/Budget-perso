@@ -65,7 +65,7 @@ def security_headers(resp):
     resp.headers.setdefault("Referrer-Policy", "no-referrer")
     if request.is_secure:
         resp.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
-    if request.endpoint != "static":
+    if request.endpoint not in ("static", "views.ticket_photo"):
         resp.headers["Cache-Control"] = "no-store"
     return resp
 

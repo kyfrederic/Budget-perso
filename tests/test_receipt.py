@@ -52,14 +52,17 @@ def test_fichier_refuse():
         receipt.prepare(b"x" * (receipt.MAX_BYTES + 1))
 
 
-def test_photo_reencodee_sans_metadonnees(tmp_path):
+def test_photo_reencodee_sans_metadonnees():
     from PIL import Image
     src = Image.new("RGB", (3000, 2000), "white")
     exif = Image.Exif()
     exif[0x010F] = "Appareil"                       # une métadonnée quelconque
     buf = io.BytesIO()
     src.save(buf, "JPEG", exif=exif)
-    token = receipt.save(receipt.prepare(buf.getvalue()), tmp_path)
-    out = Image.open(receipt.photo_path(tmp_path, token))
+    out = Image.open(io.BytesIO(receipt.encode(receipt.prepare(buf.getvalue()))))
     assert max(out.size) == receipt.MAX_SIDE and not out.getexif()
-    assert receipt.photo_path(tmp_path, "../" + token) is None
+
+
+def test_jeton_de_photo():
+    assert receipt.valid_token("0" * 32)
+    assert not receipt.valid_token("../" + "0" * 32) and not receipt.valid_token(None)

@@ -1,7 +1,6 @@
 """Lecture et écriture en base ; convertit les lignes SQL en objets de rules.py."""
 from __future__ import annotations
 
-import sqlite3
 from datetime import date
 
 from .money import month_index, prev_month
@@ -15,11 +14,11 @@ FROM lines l
 JOIN postes p ON p.id = l.poste_id
 JOIN accounts a ON a.id = p.account_id
 WHERE l.month_id = ?
-ORDER BY a.sort, p.is_reserve, p.sort, p.name COLLATE NOCASE
+ORDER BY a.sort, p.is_reserve, p.sort, LOWER(p.name)
 """
 
 
-def _line(r: sqlite3.Row) -> Line:
+def _line(r) -> Line:
     return Line(
         poste_id=r["poste_id"], name=r["name"], account=r["account"], planned=r["planned"],
         actual=r["actual"], category=r["category"], debit_day=r["debit_day"],
@@ -202,8 +201,9 @@ def delete_purchase(db, purchase_id: int, user_id: int):
     db.execute("DELETE FROM purchases WHERE id = ?", (purchase_id,))
     if pu["poste_id"] is not None:
         db.execute(
-            "UPDATE lines SET actual = MAX(COALESCE(actual, 0) - ?, 0) WHERE month_id = ? AND poste_id = ?",
-            (pu["amount"], pu["month_id"], pu["poste_id"]),
+            "UPDATE lines SET actual = CASE WHEN COALESCE(actual, 0) > ? THEN COALESCE(actual, 0) - ? ELSE 0 END "
+            "WHERE month_id = ? AND poste_id = ?",
+            (pu["amount"], pu["amount"], pu["month_id"], pu["poste_id"]),
         )
         # Plus aucun achat et un réel revenu à zéro : le poste redevient « pas encore saisi ».
         db.execute(
@@ -212,3 +212,47 @@ def delete_purchase(db, purchase_id: int, user_id: int):
             (pu["month_id"], pu["poste_id"], pu["month_id"], pu["poste_id"]),
         )
     return pu
+
+
+# ------------------------------------------------------------ photos des tickets
+
+
+def save_photo(db, data: bytes) -> str:
+    import secrets
+    import time
+
+    token = secrets.token_hex(16)
+    db.execute("INSERT INTO ticket_photos (token, data, created_at) VALUES (?, ?, ?)", (token, data, time.time()))
+    return token
+
+
+def photo(db, token: str | None) -> bytes | None:
+    from .receipt import valid_token
+
+    if not valid_token(token):
+        return None
+    row = db.execute("SELECT data FROM ticket_photos WHERE token = ?", (token,)).fetchone()
+    return bytes(row["data"]) if row else None
+
+
+def photo_exists(db, token: str | None) -> bool:
+    from .receipt import valid_token
+
+    return valid_token(token) and db.execute(
+        "SELECT 1 FROM ticket_photos WHERE token = ?", (token,)).fetchone() is not None
+
+
+def delete_photo(db, token: str | None) -> None:
+    if token:
+        db.execute("DELETE FROM ticket_photos WHERE token = ?", (token,))
+
+
+def purge_photos(db, max_age_hours: int = 24) -> None:
+    """Supprime les photos envoyées mais jamais rattachées à un achat."""
+    import time
+
+    db.execute(
+        "DELETE FROM ticket_photos WHERE created_at < ? AND token NOT IN "
+        "(SELECT photo FROM purchases WHERE photo IS NOT NULL)",
+        (time.time() - max_age_hours * 3600,),
+    )

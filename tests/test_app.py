@@ -1,6 +1,8 @@
 import re
-import sqlite3
+
+import pytest
 import tomllib
+from budget import db as dbmod
 from pathlib import Path
 
 from budget.cli import load_modele
@@ -20,16 +22,14 @@ def login(client):
 
 
 def seed(app):
-    conn = sqlite3.connect(app.config["DATABASE"])
-    conn.row_factory = sqlite3.Row
+    conn = dbmod.connect(app.config["DATABASE"])
     data = tomllib.loads((ROOT / "config" / "modele.toml").read_text(encoding="utf-8"))
     load_modele(conn, 1, data)
     conn.close()
 
 
 def q(app, sql, *args):
-    conn = sqlite3.connect(app.config["DATABASE"])
-    conn.row_factory = sqlite3.Row
+    conn = dbmod.connect(app.config["DATABASE"])
     rows = conn.execute(sql, args).fetchall()
     conn.close()
     return rows
@@ -184,7 +184,7 @@ def test_reste_du_salaire(app, client):
     """Chaque virement coché est retranché du salaire."""
     seed(app)
     t = login(client)
-    conn = sqlite3.connect(app.config["DATABASE"])
+    conn = dbmod.connect(app.config["DATABASE"])
     conn.execute("UPDATE months SET salary_net = 320000")
     conn.commit(); conn.close()
     h = {"X-Requested-With": "fetch"}
@@ -277,6 +277,12 @@ def test_photo_du_ticket(app, client, monkeypatch):
     # Supprimer l'achat supprime aussi la photo.
     client.post(f"/achats/{pu['id']}/supprimer", data={"csrf": t})
     assert client.get(f"/tickets/{token}.jpg").status_code == 404
+
+    # Texte lu dans le navigateur (tesseract.js) : le serveur en extrait le total, sans relire l'image.
+    monkeypatch.setattr(receipt, "ocr", lambda img: pytest.fail("la lecture serveur ne doit pas être appelée"))
+    r = client.post("/mois/2026/10/achat/photo", content_type="multipart/form-data",
+                    data={"csrf": t, "photo": (_photo(), "t.jpg"), "ocr_text": "CARREFOUR MARKET\nTOTAL A PAYER 42,23\n13/10/26"})
+    assert "montant=4223" in r.headers["Location"] and "date=2026-10-13" in r.headers["Location"]
 
     # Un fichier qui n'est pas une image est refusé.
     import io

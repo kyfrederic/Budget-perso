@@ -5,10 +5,8 @@ import calendar
 import re
 from datetime import date
 
-from pathlib import Path
-
 from flask import (Blueprint, Response, abort, current_app, flash, g, redirect, render_template,
-                   request, send_file, url_for)
+                   request, url_for)
 
 from . import receipt, rules, store
 from .db import get_db
@@ -218,7 +216,7 @@ def line_add(year: int, month: int):
     if p is None:
         abort(400)
     db.execute(
-        "INSERT OR IGNORE INTO lines (month_id, poste_id, planned) VALUES (?, ?, ?)",
+        "INSERT INTO lines (month_id, poste_id, planned) VALUES (?, ?, ?) ON CONFLICT DO NOTHING",
         (row["id"], p["id"], p["default_planned"]),
     )
     db.commit()
@@ -281,10 +279,6 @@ def months():
 # ------------------------------------------------------------------ achats
 
 
-def _tickets() -> Path:
-    return Path(current_app.config["TICKETS_DIR"])
-
-
 def _iso_date(text: str | None) -> str | None:
     if not text or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", text):
         return None
@@ -306,10 +300,12 @@ def purchase_photo(year: int, month: int):
     except receipt.ReceiptError as exc:
         abort(400, str(exc))
     db = get_db()
-    used = {r["photo"] for r in db.execute("SELECT photo FROM purchases WHERE photo IS NOT NULL")}
-    receipt.purge_orphans(_tickets(), used)
-    token = receipt.save(img, _tickets())
-    r = receipt.ocr(img)
+    store.purge_photos(db)
+    token = store.save_photo(db, receipt.encode(img))
+    db.commit()
+    # Texte déjà lu dans le navigateur (tesseract.js) ; sinon lecture sur le serveur si possible.
+    text = request.form.get("ocr_text", "")[:20000]
+    r = receipt.extract(text) if text.strip() else receipt.ocr(img)
     args = {"photo": token, "lu": "absent" if not r.available else ("oui" if r.amount else "non")}
     if r.amount:
         args["montant"] = r.amount
@@ -338,7 +334,7 @@ def purchase(year: int, month: int):
             if poste_id is None:
                 abort(400, "Poste inconnu pour ce mois.")
         token = request.form.get("photo") or None
-        if token and receipt.photo_path(_tickets(), token) is None:
+        if token and not store.photo_exists(db, token):
             token = None
         category = "besoins" if "besoin" in request.form else "envies"
         try:
@@ -355,7 +351,7 @@ def purchase(year: int, month: int):
         return redirect(url_for("views.month", year=year, month=month) + "#achats")
 
     token = request.args.get("photo")
-    if receipt.photo_path(_tickets(), token) is None:
+    if not store.photo_exists(db, token):
         token = None
     today = date.today()
     default_day = today if (today.year, today.month) == (year, month) else date(year, month, 1)
@@ -378,10 +374,8 @@ def purchase_delete(purchase_id: int):
     pu = store.delete_purchase(db, purchase_id, g.user_id)
     if pu is None:
         abort(404)
+    store.delete_photo(db, pu["photo"])
     db.commit()
-    path = receipt.photo_path(_tickets(), pu["photo"])
-    if path is not None:
-        path.unlink(missing_ok=True)
     mrow = db.execute("SELECT year, month FROM months WHERE id = ?", (pu["month_id"],)).fetchone()
     flash(f"{pu['label']} supprimé.")
     return redirect(url_for("views.month", year=mrow["year"], month=mrow["month"]) + "#achats")
@@ -390,10 +384,12 @@ def purchase_delete(purchase_id: int):
 @bp.route("/tickets/<token>.jpg")
 def ticket_photo(token: str):
     """Photo d'un ticket : jamais servie en fichier statique, connexion exigée."""
-    path = receipt.photo_path(_tickets(), token)
-    if path is None:
+    data = store.photo(get_db(), token)
+    if data is None:
         abort(404)
-    return send_file(path, mimetype="image/jpeg", max_age=0)
+    resp = Response(data, mimetype="image/jpeg")
+    resp.headers["Cache-Control"] = "private, max-age=86400"
+    return resp
 
 
 # ----------------------------------------------------------- propositions
@@ -592,7 +588,7 @@ def postes():
         return redirect(url_for("views.postes"))
     rows = db.execute(
         "SELECT p.*, a.name AS account FROM postes p JOIN accounts a ON a.id = p.account_id "
-        "WHERE p.user_id = ? ORDER BY p.active DESC, a.sort, p.is_reserve, p.name COLLATE NOCASE",
+        "WHERE p.user_id = ? ORDER BY p.active DESC, a.sort, p.is_reserve, LOWER(p.name)",
         (g.user_id,),
     ).fetchall()
     return render_template("postes.html", postes=rows, accounts=_accounts(), categories=rules.CATEGORIES_LABEL)

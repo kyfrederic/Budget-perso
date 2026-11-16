@@ -1,9 +1,9 @@
 """Import Excel, testé sur des classeurs fabriqués ici (montants fictifs)."""
-import sqlite3
 
 import openpyxl
 import pytest
 
+from budget import db as dbmod
 from budget import importer
 
 
@@ -116,8 +116,7 @@ def test_nom_de_fichier(tmp_path):
 def test_ecriture_en_base(app, dossier):
     months = importer.read_folder(dossier, 2026, CONFIG)
     postes = importer.build_postes(months, CONFIG, COMPTES)
-    conn = sqlite3.connect(app.config["DATABASE"])
-    conn.row_factory = sqlite3.Row
+    conn = dbmod.connect(app.config["DATABASE"])
     importer.apply(conn, 1, months, postes)
     rows = conn.execute("SELECT year, month, salary_net, (SELECT SUM(planned) FROM lines WHERE month_id = months.id) AS t "
                         "FROM months ORDER BY month").fetchall()

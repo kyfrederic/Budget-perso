@@ -15,7 +15,7 @@ from .auth import hash_password
 from .money import euros_to_cents, month_label
 
 
-def _conn() -> sqlite3.Connection:
+def _conn():
     return dbmod.connect(current_app.config["DATABASE"])
 
 
@@ -105,7 +105,7 @@ def register(app) -> None:
         click.echo(f"Sauvegarde lisible : {n_mois} mois, {n_lignes} lignes, dernier mois : {dernier}.")
 
 
-def load_modele(conn: sqlite3.Connection, user_id: int, data: dict) -> int:
+def load_modele(conn, user_id: int, data: dict) -> int:
     """Insère les postes, le mois de départ et les crédits du modèle."""
     if conn.execute("SELECT COUNT(*) FROM postes WHERE user_id = ?", (user_id,)).fetchone()[0]:
         raise ValueError("Des postes existent déjà : le modèle ne se charge qu'une fois.")
@@ -145,7 +145,7 @@ def load_modele(conn: sqlite3.Connection, user_id: int, data: dict) -> int:
             )
     for c in data.get("credits", []):
         conn.execute(
-            "INSERT OR IGNORE INTO credits (user_id, name, target_date) VALUES (?, ?, ?)",
+            "INSERT INTO credits (user_id, name, target_date) VALUES (?, ?, ?) ON CONFLICT DO NOTHING",
             (user_id, c["nom"], c.get("objectif")),
         )
     conn.commit()

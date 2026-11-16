@@ -1,21 +1,20 @@
 """Lecture d'un ticket de caisse pris en photo.
 
-Tout se passe sur le serveur : Pillow prépare l'image, le programme Tesseract lit le texte.
-Le résultat n'est qu'une proposition, toujours confirmée ou corrigée par Fred.
+Le texte du ticket est lu soit dans le navigateur (tesseract.js, cas de Vercel où aucun
+logiciel ne peut être installé), soit sur le serveur par le programme Tesseract s'il est là.
+Dans les deux cas `extract` en tire le total, la date et le commerçant : une proposition,
+toujours confirmée ou corrigée par Fred. Aucun service tiers ne voit la photo.
 """
 from __future__ import annotations
 
 import io
 import re
-import secrets
 import shutil
 import subprocess
 import tempfile
-import time
 import unicodedata
 from dataclasses import dataclass
 from datetime import date
-from pathlib import Path
 
 MAX_BYTES = 10 * 1024 * 1024
 MAX_SIDE = 1600
@@ -118,31 +117,15 @@ def prepare(data: bytes):
     return img
 
 
-def save(img, folder: Path) -> str:
-    """Enregistre la photo réencodée (sans métadonnées, donc sans localisation). Renvoie son jeton."""
-    folder.mkdir(parents=True, exist_ok=True)
-    token = secrets.token_hex(16)
-    img.save(folder / f"{token}.jpg", "JPEG", quality=80, optimize=True)
-    return token
+def encode(img) -> bytes:
+    """Photo réencodée en JPEG, sans métadonnées (donc sans localisation)."""
+    buf = io.BytesIO()
+    img.save(buf, "JPEG", quality=78, optimize=True)
+    return buf.getvalue()
 
 
-def photo_path(folder: Path, token: str | None) -> Path | None:
-    if not token or not TOKEN.fullmatch(token):
-        return None
-    path = folder / f"{token}.jpg"
-    return path if path.is_file() else None
-
-
-def purge_orphans(folder: Path, used: set[str], max_age_hours: int = 24) -> int:
-    """Supprime les photos envoyées mais jamais rattachées à un achat."""
-    if not folder.is_dir():
-        return 0
-    limit, n = time.time() - max_age_hours * 3600, 0
-    for f in folder.glob("*.jpg"):
-        if f.stem not in used and f.stat().st_mtime < limit:
-            f.unlink(missing_ok=True)
-            n += 1
-    return n
+def valid_token(token: str | None) -> bool:
+    return bool(token) and TOKEN.fullmatch(token) is not None
 
 
 def ocr(img) -> Reading:

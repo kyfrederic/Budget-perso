@@ -1,5 +1,7 @@
--- Schéma de données. Tous les montants sont en centimes (INTEGER).
-PRAGMA foreign_keys = ON;
+-- Schéma de données, commun à SQLite et Postgres (db.py adapte les types).
+-- Tous les montants sont en centimes (INTEGER). Rejouable : tout est en IF NOT EXISTS.
+
+CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL);
 
 CREATE TABLE IF NOT EXISTS users (
     id            INTEGER PRIMARY KEY,
@@ -41,7 +43,7 @@ CREATE TABLE IF NOT EXISTS months (
     net_imposable INTEGER,
     pas           INTEGER,          -- prélèvement à la source
     notes         TEXT NOT NULL DEFAULT '',
-    created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+    created_at    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (user_id, year, month)
 );
 
@@ -79,7 +81,7 @@ CREATE TABLE IF NOT EXISTS proposal_decisions (
     current    INTEGER NOT NULL,
     proposed   INTEGER NOT NULL,
     status     TEXT NOT NULL CHECK (status IN ('accepted','refused')),
-    decided_at TEXT NOT NULL DEFAULT (datetime('now')),
+    decided_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (poste_id, ref_year, ref_month)
 );
 
@@ -106,7 +108,7 @@ CREATE TABLE IF NOT EXISTS transfers_done (
     month_id   INTEGER NOT NULL REFERENCES months(id) ON DELETE CASCADE,
     account_id INTEGER NOT NULL REFERENCES accounts(id),
     kind       TEXT NOT NULL DEFAULT 'debut' CHECK (kind IN ('debut','fin')),
-    done_at    TEXT NOT NULL DEFAULT (datetime('now')),
+    done_at    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (month_id, account_id, kind)
 );
 
@@ -121,13 +123,29 @@ CREATE TABLE IF NOT EXISTS purchases (
     bought_on  TEXT,                 -- AAAA-MM-JJ
     poste_id   INTEGER REFERENCES postes(id),
     category   TEXT NOT NULL DEFAULT 'envies' CHECK (category IN ('envies','besoins')),
-    photo      TEXT,                 -- nom du fichier dans instance/tickets/
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    photo      TEXT,                 -- jeton de la photo dans ticket_photos
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_purchases_month ON purchases(month_id);
 
 CREATE TABLE IF NOT EXISTS login_attempts (
     ip TEXT NOT NULL,
-    ts REAL NOT NULL
+    ts DOUBLE PRECISION NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_login_attempts ON login_attempts(ip, ts);
+
+-- Photos des tickets de caisse, réduites et réencodées (sans métadonnées).
+CREATE TABLE IF NOT EXISTS ticket_photos (
+    token      TEXT PRIMARY KEY,
+    data       BLOB NOT NULL,
+    created_at DOUBLE PRECISION NOT NULL
+);
+
+-- Second facteur (code à 6 chiffres) et codes de secours.
+CREATE TABLE IF NOT EXISTS user_security (
+    user_id        INTEGER PRIMARY KEY REFERENCES users(id),
+    totp_secret    TEXT,                       -- secret en attente tant que totp_enabled = 0
+    totp_enabled   INTEGER NOT NULL DEFAULT 0,
+    totp_last_step INTEGER NOT NULL DEFAULT 0, -- dernier pas de temps accepté (anti-rejeu)
+    recovery       TEXT NOT NULL DEFAULT ''    -- empreintes des codes de secours restants
+);
