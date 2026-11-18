@@ -90,7 +90,10 @@ def create_app(test_config: dict | None = None) -> Flask:
             try:
                 fingerprints[filename] = hashlib.sha256(path.read_bytes()).hexdigest()[:10]
             except OSError:
-                fingerprints[filename] = "0"
+                # Fichier absent de la fonction (Vercel) : identifiant de la version déployée,
+                # qui change à chaque mise en ligne.
+                fingerprints[filename] = (os.environ.get("VERCEL_GIT_COMMIT_SHA")
+                                          or os.environ.get("VERCEL_DEPLOYMENT_ID") or "0")[:10]
         return url_for("static", filename=filename, v=fingerprints[filename])
 
     app.jinja_env.globals["asset"] = asset

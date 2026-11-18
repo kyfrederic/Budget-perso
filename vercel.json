@@ -7,7 +7,7 @@
   "functions": {
     "api/index.py": {
       "maxDuration": 30,
-      "excludeFiles": "{.claude/**,tests/**,scripts/**,deploy/**,design-system/**,public/**,instance/**}"
+      "excludeFiles": "{.claude/**,tests/**,scripts/**,deploy/**,design-system/**,instance/**,public/static/fonts/**,public/static/ocr/tesseract*,public/static/ocr/worker.min.js,public/static/ocr/*.gz}"
     }
   },
   "rewrites": [
