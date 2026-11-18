@@ -149,3 +149,9 @@ CREATE TABLE IF NOT EXISTS user_security (
     totp_last_step INTEGER NOT NULL DEFAULT 0, -- dernier pas de temps accepté (anti-rejeu)
     recovery       TEXT NOT NULL DEFAULT ''    -- empreintes des codes de secours restants
 );
+
+-- Fichiers Excel déposés par l'écran d'import, le temps de l'aperçu puis de la confirmation.
+CREATE TABLE IF NOT EXISTS import_files (
+    name TEXT PRIMARY KEY,
+    data BLOB NOT NULL
+);

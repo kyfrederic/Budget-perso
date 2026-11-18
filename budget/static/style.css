@@ -279,6 +279,16 @@ input[type=file]::file-selector-button {
 .check-line { color: var(--fg); font-weight: 400; font-size: .9375rem; min-height: 44px; display: block; }
 h1.page small { font-size: 1rem; font-weight: 500; }
 
+/* ---------- Réglages, connexion ---------- */
+.qr { max-width: 240px; margin: 0 0 var(--s3); padding: var(--s2); background: #FFFFFF; border: 1px solid var(--line); border-radius: var(--radius-s); }
+.qr svg { display: block; width: 100%; height: auto; }
+.key { word-break: break-all; }
+.code-input { font-size: 1.5rem; letter-spacing: .2em; text-align: center; font-weight: 700; }
+.codes { list-style: none; padding: 0; margin: 0 0 var(--s4); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s2); }
+.codes code { display: block; text-align: center; padding: var(--s2); font-size: 1rem; }
+.report { background: var(--bg); border-radius: var(--radius-s); padding: var(--s3); font-size: .8125rem; line-height: 1.5; overflow-x: auto; margin: 0 0 var(--s4); white-space: pre; }
+.card form + form, .card .btn + form { margin-top: var(--s2); }
+
 /* ---------- Suggestions ---------- */
 .sugg { background: var(--clay-bg); border-color: transparent; }
 .sugg p { margin-bottom: var(--s3); }

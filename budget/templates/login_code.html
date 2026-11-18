@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Code de connexion — Budget{% endblock %}
+{% block content %}
+<section class="card narrow">
+  <h1>Code à 6 chiffres</h1>
+  <p class="muted">Ouvre ton appli d'authentification et saisis le code affiché pour « Budget ».</p>
+  {% if error %}<p class="note alert" role="alert">{{ error }}</p>{% endif %}
+  <form method="post">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <label>Code
+      <input name="code" id="code" inputmode="numeric" autocomplete="one-time-code" required autofocus maxlength="20" class="code-input"></label>
+    <button class="primary">Valider</button>
+  </form>
+  <p class="muted small">Téléphone indisponible ? Saisis à la place un de tes codes de secours (forme <code>ab12-cd34-ef56</code>).</p>
+  <p class="small"><a href="{{ url_for('auth.login') }}">Revenir au mot de passe</a></p>
+</section>
+{% endblock %}

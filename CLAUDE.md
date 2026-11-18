@@ -189,14 +189,28 @@ L'onglet « Orthodontie » d'Excel est un exemple de projet d'achat ; une télé
 | Matelas vide | Constat posé en ton argile ; le rouge n'apparaît que si le reste devient négatif. |
 | Photo du ticket | Lue **sur le serveur** par Tesseract (aucun service tiers). Le montant, la date et le commerçant sont des propositions, **toujours confirmées** avant d'enregistrer. La photo est gardée (réencodée, sans métadonnées) dans `instance/tickets/` et sauvegardée. |
 
+### Décisions du 2026-11-16 (hébergement sur Vercel)
+
+| Sujet | Décision |
+|---|---|
+| Hébergement | **Vercel** + base **Postgres chez Neon** (région Europe), à la place du VPS. Fred accepte que ses données soient chez ces deux prestataires : la règle « pas de service tiers » de la section 11 ne vaut plus pour l'hébergement et la base. Le VPS (Docker + Caddy + restic) reste une variante documentée. |
+| Base de données | `budget/db.py` sert SQLite (essais, tests) et Postgres (`DATABASE_URL`) avec le même code. Les tests passent sur les deux (`TEST_DATABASE_URL`). |
+| Photos des tickets | Stockées **dans la base**, réduites dans le navigateur avant l'envoi. |
+| Lecture des tickets | **Dans le navigateur** (tesseract.js servi par l'appli) ; Tesseract côté serveur reste un repli hors Vercel. |
+| Mise en route | Depuis l'appli : écran protégé par `BUDGET_SETUP_CODE`, puis import Excel par écran. Plus besoin de commandes. |
+| Second facteur | **Ajouté** (remplace le « Non en V1 » du 2026-11-13) : code à 6 chiffres, codes de secours, proposé dès la mise en route. |
+| Sauvegarde | Fichier téléchargé depuis les Réglages (sans les photos) + historique de Neon. Remplace la sauvegarde nocturne automatique hors du VPS, à réintroduire plus tard si besoin. |
+
 ## 13 ter. État de la V1
 
 - Stack : Flask + SQLite + pages côté serveur (voir `README.md` pour lancer, configurer et déployer).
 - Règles métier dans `budget/rules.py` (fonctions pures, testées dans `tests/test_rules.py`). Montants stockés en centimes.
 - **Design** : ambiance « Nature » (sauge et argile, toujours claire, animée), décrite dans `design-system/budget/MASTER.md`. Toute évolution d'écran part de ce fichier. CSS simple, police hébergée localement, mouvement dans `static/app.js`, pas de style ni de script en ligne (CSP). Le skill `ui-ux-pro-max` est installé dans `.claude/skills/`.
 - **Import Excel** : `flask --app budget import-excel DOSSIER --annee 2026` (aperçu), `--ecrire` pour importer dans une base vide. Lecture décrite en tête de `budget/importer.py`, correspondances dans `[import]` de `config/settings.toml`. Vérifié sur les 9 fichiers : totaux identiques à Excel.
-- **Achats et tickets** : `budget/receipt.py` (préparation de l'image, lecture, extraction du total), table `purchases`, écran `purchase.html`. Tesseract (`tesseract-ocr`, `tesseract-ocr-fra`) est installé par le `Dockerfile` ; sans lui, la saisie à la main fonctionne.
-- **Reste à faire en V1** : premier déploiement réel sur le VPS (import à y relancer, sauvegardes, test de restauration). Net imposable et prélèvement à la source de mars à novembre à saisir à la main (absents d'Excel).
+- **Achats et tickets** : `budget/receipt.py` (préparation de l'image, extraction du total), `budget/static/ocr/ticket.js` (lecture dans le navigateur), table `purchases`, écran `purchase.html`.
+- **Hébergement Vercel** : `api/index.py` (point d'entrée), `vercel.json` (fichiers statiques copiés dans `public/`, région Paris), `.vercelignore`. Variables : `DATABASE_URL` (Neon), `BUDGET_SECRET_KEY`, `BUDGET_SETUP_CODE`. Marche à suivre dans `README.md`.
+- **Réglages** (`budget/admin.py`) : second facteur, import Excel, sauvegarde et restauration. Second facteur dans `budget/totp.py`.
+- **Reste à faire en V1** : premier déploiement réel sur Vercel par Fred (jamais testé sur Vercel même : simulé en local avec Postgres). Net imposable et prélèvement à la source de mars à novembre à saisir à la main.
 
 ## 14. Prochaines étapes
 

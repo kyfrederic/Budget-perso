@@ -305,7 +305,12 @@ def purchase_photo(year: int, month: int):
     db.commit()
     # Texte déjà lu dans le navigateur (tesseract.js) ; sinon lecture sur le serveur si possible.
     text = request.form.get("ocr_text", "")[:20000]
-    r = receipt.extract(text) if text.strip() else receipt.ocr(img)
+    if text.strip():
+        r = receipt.extract(text)
+    elif "ocr_tried" in request.form:
+        r = receipt.Reading()                     # le navigateur a essayé et n'a rien lu
+    else:
+        r = receipt.ocr(img)
     args = {"photo": token, "lu": "absent" if not r.available else ("oui" if r.amount else "non")}
     if r.amount:
         args["montant"] = r.amount

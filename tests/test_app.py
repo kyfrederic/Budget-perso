@@ -157,7 +157,9 @@ def test_cle_secrete_generee(tmp_path, monkeypatch):
     app = create_app({"TESTING": True})
     assert len(app.config["SECRET_KEY"]) == 64
     assert (tmp_path / "secret_key").stat().st_mode & 0o777 == 0o600
-    assert app.test_client().get("/connexion").status_code == 200
+    # Aucun mot de passe défini : la connexion renvoie vers la mise en route.
+    r = app.test_client().get("/connexion")
+    assert r.status_code == 302 and r.headers["Location"].endswith("/mise-en-route")
 
 
 def test_virements_a_cocher(app, client):

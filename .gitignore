@@ -8,3 +8,5 @@ backups/
 .pytest_cache/
 deploy/.env
 import/
+public/
+.vercel

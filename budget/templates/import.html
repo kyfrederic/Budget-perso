@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Import Excel — Budget{% endblock %}
+{% block content %}
+<h1 class="page">Importer mes fichiers Excel</h1>
+
+{% if blocked %}
+<p class="note calm">Le budget contient déjà des postes : l'import ne se fait que sur un budget vide.</p>
+
+{% elif stored %}
+<section class="card">
+  <h2>Aperçu <span class="count">{{ stored|length }} fichier{{ 's' if stored|length > 1 }} · rien n'est encore enregistré</span></h2>
+  {% if error %}<p class="note alert" role="alert">{{ error }}</p>
+  {% else %}<pre class="report">{{ report }}</pre>{% endif %}
+  <div class="actions">
+    {% if not error %}
+    <form method="post">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="action" value="confirm"><input type="hidden" name="year" value="{{ year }}">
+      <button class="primary">Importer dans mon budget</button>
+    </form>
+    {% endif %}
+    <form method="post">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="action" value="cancel">
+      <button>Annuler et choisir d'autres fichiers</button>
+    </form>
+  </div>
+</section>
+
+{% else %}
+<form method="post" enctype="multipart/form-data" class="card">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="action" value="upload">
+  <p>Sélectionne tous tes fichiers <code>MOIS_SOLO.xlsx</code> d'une même année (par exemple <code>MARS_SOLO.xlsx</code> à <code>NOVEMBRE_SOLO.xlsx</code>). Tu verras un aperçu avant que quoi que ce soit ne soit enregistré.</p>
+  <div class="row2">
+    <label>Fichiers Excel <input type="file" name="files" id="files" accept=".xlsx" multiple required></label>
+    <label>Année de ces fichiers <input type="number" name="year" id="year" value="{{ year }}" min="2000" max="2100" required></label>
+  </div>
+  <button class="primary">Voir l'aperçu</button>
+</form>
+{% endif %}
+{% endblock %}

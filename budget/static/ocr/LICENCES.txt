@@ -1,0 +1,11 @@
+Fichiers tiers de ce dossier, hébergés ici pour ne rien charger depuis un autre site :
+
+- tesseract.min.js, worker.min.js : tesseract.js 7.0.0, licence Apache-2.0
+  https://github.com/naptha/tesseract.js
+- tesseract-core-relaxedsimd-lstm.wasm.js, tesseract-core-simd-lstm.wasm.js, tesseract-core-lstm.wasm.js :
+  tesseract.js-core 7.0.0, licence Apache-2.0 (trois variantes : le navigateur prend la plus rapide qu'il sait exécuter)
+  https://github.com/naptha/tesseract.js-core
+- fra.traineddata.gz : modèle français « best_int » de Tesseract (@tesseract.js-data/fra 1.0.0), licence Apache-2.0
+  https://github.com/tesseract-ocr/tessdata_best
+
+ticket.js est le code de l'appli.

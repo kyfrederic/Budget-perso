@@ -3,7 +3,7 @@
 {% block content %}
 <h1 class="page">Ajouter un achat <small class="muted">· {{ month_label(m.year, m.month) }}</small></h1>
 
-<form method="post" action="{{ url_for('views.purchase_photo', year=m.year, month=m.month) }}" enctype="multipart/form-data" class="card photo-form" data-autosubmit>
+<form method="post" action="{{ url_for('views.purchase_photo', year=m.year, month=m.month) }}" enctype="multipart/form-data" class="card photo-form" data-ticket data-ocr="{{ url_for('static', filename='ocr/') }}">
   <input type="hidden" name="csrf" value="{{ csrf_token() }}">
   {% if photo %}
   <a class="ticket" href="{{ url_for('views.ticket_photo', token=photo) }}"><img src="{{ url_for('views.ticket_photo', token=photo) }}" alt="Photo du ticket"></a>
@@ -11,13 +11,13 @@
   <div>
     {% if read == 'oui' %}<p class="note ok">Montant lu sur le ticket : vérifie-le avant d'enregistrer.</p>
     {% elif read == 'non' %}<p class="note warn">Je n'ai pas réussi à lire le montant sur cette photo. Saisis-le ci-dessous, ou reprends la photo bien à plat et bien éclairée.</p>
-    {% elif read == 'absent' %}<p class="note warn">La lecture automatique n'est pas installée sur ce serveur. La photo est gardée, saisis le montant ci-dessous.</p>
+    {% elif read == 'absent' %}<p class="note warn">La lecture automatique n'a pas pu se lancer (JavaScript est peut-être désactivé). La photo est gardée, saisis le montant ci-dessous.</p>
     {% else %}<p class="muted">Prends le ticket en photo : le montant est lu automatiquement, tu n'as plus qu'à vérifier.</p>{% endif %}
     <label class="file">{{ 'Reprendre la photo' if photo else 'Photo du ticket' }}
       <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" capture="environment" required>
     </label>
-    <button class="{{ '' if photo else 'primary' }}" data-autosubmit-hide>Lire le ticket</button>
-    <p class="muted small" data-reading hidden>Lecture du ticket en cours…</p>
+    <button class="{{ '' if photo else 'primary' }}" data-ticket-hide>Envoyer la photo</button>
+    <p class="muted small" data-reading role="status" hidden>Lecture du ticket en cours…</p>
   </div>
 </form>
 
@@ -45,4 +45,8 @@
     <a class="btn" href="{{ url_for('views.month', year=m.year, month=m.month) }}">Annuler</a>
   </div>
 </form>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='ocr/tesseract.min.js') }}" defer></script>
+<script src="{{ url_for('static', filename='ocr/ticket.js') }}" defer></script>
 {% endblock %}

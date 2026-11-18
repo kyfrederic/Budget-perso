@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 {% if g.user_id %}<link rel="stylesheet" href="{{ url_for('views.couleurs') }}">{% endif %}
 <script src="{{ url_for('static', filename='app.js') }}" defer></script>
+{% block scripts %}{% endblock %}
 </head>
 <body class="{{ 'signed-in' if g.user_id else 'signed-out' }}">
 {% if g.user_id %}
@@ -31,7 +32,7 @@
   <nav class="desk" aria-label="Navigation principale">
     {{ link('views.month', 'Mois') }}
     {% if has_month %}{{ link('views.calendar_view', 'Calendrier') }}{{ link('views.analysis', 'Analyse') }}{% endif %}
-    {{ link('views.cheques', 'Chèques') }}{{ link('views.postes', 'Postes') }}{{ link('views.credits', 'Crédits') }}{{ link('views.months', 'Historique') }}
+    {{ link('views.cheques', 'Chèques') }}{{ link('views.postes', 'Postes') }}{{ link('views.credits', 'Crédits') }}{{ link('views.months', 'Historique') }}{{ link('admin.settings_home', 'Réglages') }}
   </nav>
   <form method="post" action="{{ url_for('auth.logout') }}" class="logout">
     <input type="hidden" name="csrf" value="{{ csrf_token() }}">
@@ -44,9 +45,9 @@
   {{ link('views.analysis', 'Analyse', 'analyse') }}
   {{ link('views.cheques', 'Chèques', 'cheques') }}
   <details class="more">
-    <summary {% if ep in ('views.postes', 'views.credits', 'views.months') %}class="current"{% endif %}>{{ icon('plus-menu', 22) }}<span>Plus</span></summary>
+    <summary {% if ep in ('views.postes', 'views.credits', 'views.months') or (ep or '').startswith('admin.') %}class="current"{% endif %}>{{ icon('plus-menu', 22) }}<span>Plus</span></summary>
     <div class="sheet">
-      {{ link('views.postes', 'Postes') }}{{ link('views.credits', 'Crédits') }}{{ link('views.months', 'Historique') }}
+      {{ link('views.postes', 'Postes') }}{{ link('views.credits', 'Crédits') }}{{ link('views.months', 'Historique') }}{{ link('admin.settings_home', 'Réglages') }}
       <form method="post" action="{{ url_for('auth.logout') }}">
         <input type="hidden" name="csrf" value="{{ csrf_token() }}">
         <button class="link">Quitter</button>

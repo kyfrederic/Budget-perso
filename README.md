@@ -38,9 +38,9 @@ export BUDGET_DEV=1                      # autorise http://localhost (jamais en 
 
 ## Lecture des tickets
 
-La lecture se fait sur le serveur avec [Tesseract](https://github.com/tesseract-ocr/tesseract), sans service tiers. Le conteneur l'installe. Hors Docker : `apt install tesseract-ocr tesseract-ocr-fra`. Sans Tesseract, la photo est gardée et le montant se saisit à la main.
+Le ticket est lu **dans le navigateur** (tesseract.js, servi par l'appli depuis `budget/static/ocr/`) : la photo n'est envoyée à aucun service de lecture. Si le navigateur n'y arrive pas et que le programme Tesseract est installé sur le serveur (VPS, essai local), c'est lui qui lit. Sinon, la photo est gardée et le montant se saisit à la main.
 
-Les photos sont réencodées (métadonnées retirées), rangées dans `instance/tickets/`, servies seulement à l'utilisateur connecté et incluses dans la sauvegarde. Formats acceptés : JPEG, PNG, WebP, 10 Mo au plus.
+Les photos sont réduites dans le navigateur, réencodées sans métadonnées, stockées dans la base (table `ticket_photos`) et servies seulement à l'utilisateur connecté. Formats acceptés : JPEG, PNG, WebP, 10 Mo au plus.
 
 ## Configuration
 
@@ -51,9 +51,30 @@ Les photos sont réencodées (métadonnées retirées), rangées dans `instance/
 
 Après une modification de `settings.toml` : `docker compose restart app`.
 
-## Déploiement sur un VPS
+## Mise en ligne sur Vercel (hébergement choisi)
 
-Non testé dans un vrai conteneur à ce stade (pas de Docker dans l'environnement de développement).
+L'appli tourne sur Vercel avec une base Postgres hébergée par Neon. Rien n'est à installer sur ton ordinateur.
+
+1. **Créer le projet**. Sur [vercel.com](https://vercel.com), « Add New… → Project », importe le dépôt GitHub `Budget-perso`. Dans les réglages du projet (« Settings → Git »), mets **`claude/personal-budget-app-l2w4bt`** comme branche de production. Laisse « Framework Preset » sur « Other » : `vercel.json` fait le reste.
+2. **Ajouter la base**. Onglet « Storage » → « Create Database » → **Neon** (Postgres), région **Europe (Frankfurt)**, offre gratuite. Rattache-la au projet : la variable `DATABASE_URL` est posée toute seule.
+3. **Ajouter deux variables** (« Settings → Environment Variables ») :
+   - `BUDGET_SECRET_KEY` : une longue suite aléatoire, par exemple 64 caractères tirés d'un gestionnaire de mots de passe. Ne la change plus ensuite (sinon tout le monde est déconnecté, c'est tout).
+   - `BUDGET_SETUP_CODE` : un code de ton choix, qui sert **une seule fois** à la première ouverture.
+4. **Déployer** (« Deployments → Redeploy »), puis ouvre l'adresse donnée par Vercel :
+   - l'écran « Bienvenue » demande le code de mise en route et ton mot de passe (14 caractères au moins) ;
+   - active le **code à 6 chiffres** avec une appli d'authentification et range les codes de secours ;
+   - « Réglages → Importer mes fichiers Excel » : sélectionne tes 9 fichiers `MOIS_SOLO.xlsx`, vérifie l'aperçu, confirme.
+5. Sur le téléphone : ouvre l'adresse puis « Ajouter à l'écran d'accueil ».
+
+Ensuite, chaque mise à jour poussée sur la branche est mise en ligne automatiquement.
+
+**Sauvegarde** : « Réglages → Télécharger une sauvegarde », à faire régulièrement et à garder hors de Vercel. Le fichier contient tout le budget, mais pas les photos des tickets. Neon garde aussi un historique de la base (7 jours sur l'offre gratuite).
+
+**À savoir** : la base gratuite s'endort après quelques minutes sans visite ; la première page met alors quelques secondes à s'afficher.
+
+## Variante : déploiement sur un VPS
+
+Voie alternative, conservée si tu quittes Vercel un jour. Non testée dans un vrai conteneur (pas de Docker dans l'environnement de développement).
 
 1. **Durcir le serveur avant tout** :
    - connexion SSH par clé uniquement (`PasswordAuthentication no`, `PermitRootLogin no`) ;
@@ -89,6 +110,13 @@ Non testé dans un vrai conteneur à ce stade (pas de Docker dans l'environnemen
 
 Ambiance « Nature », toujours claire, décrite dans [design-system/budget/MASTER.md](design-system/budget/MASTER.md). Le mouvement (`static/app.js`) est une amélioration progressive : tout fonctionne sans JavaScript.
 
+## Tests
+
+```bash
+.venv/bin/python -m pytest                                              # SQLite
+TEST_DATABASE_URL=postgresql://utilisateur:mdp@hote/base .venv/bin/python -m pytest   # Postgres (base vidée !)
+```
+
 ## Sécurité
 
-Mot de passe haché (scrypt), blocage après 5 tentatives par quart d'heure, jeton anti-CSRF sur chaque formulaire, cookie de session `Secure` / `HttpOnly`, politique CSP stricte, conteneur en lecture seule sans privilèges. Pas de second facteur en V1 (décision du 2026-11-13) : le mot de passe doit être long et unique.
+Mot de passe haché (scrypt), blocage après 5 tentatives par quart d'heure, jeton anti-CSRF sur chaque formulaire, cookie de session `Secure` / `HttpOnly`, politique CSP stricte, conteneur en lecture seule sans privilèges. Second facteur (code à 6 chiffres, codes de secours) activable dans les Réglages, et proposé dès la mise en route.

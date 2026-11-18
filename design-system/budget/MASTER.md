@@ -61,6 +61,12 @@ empattements, plus lisible pour des chiffres).
 - Matelas à zéro : bandeau et anneau en ton argile, phrase posée (« Le matelas a servi en entier ce mois-ci »). Rouge seulement en dessous de zéro.
 - Un imprévu sans photo montre une pastille vide de la même taille que la miniature, pour garder l'alignement.
 
+## Connexion et réglages
+
+- Mise en route, connexion et code à 6 chiffres : une carte étroite centrée, un seul champ principal mis en avant ; le champ du code est grand, centré, chiffres espacés.
+- Réglages : une carte par sujet (connexion, sauvegarde, restauration, import), action principale en bouton vert ; tant que le second facteur est désactivé, un rappel en ton argile le propose.
+- Codes de secours affichés une seule fois, en grille de deux colonnes, avec la consigne de les ranger ailleurs que sur le téléphone.
+
 ## Mouvement
 
 | Élément | Comportement | Durée |

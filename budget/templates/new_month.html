@@ -9,7 +9,7 @@
   {% elif n_postes %}
   <p class="muted">Premier mois : il part des {{ n_postes }} postes du modèle.</p>
   {% else %}
-  <p class="note warn">Aucun poste n'existe encore. Charge d'abord le modèle (<code>flask --app budget charger-modele</code>) ou crée tes postes dans l'écran <a href="{{ url_for('views.postes') }}">Postes</a>.</p>
+  <p class="note warn">Aucun poste n'existe encore. <a href="{{ url_for('admin.import_excel') }}">Importe tes fichiers Excel</a>, ou crée tes postes à la main dans l'écran <a href="{{ url_for('views.postes') }}">Postes</a>.</p>
   {% endif %}
   <form method="post">
     <input type="hidden" name="csrf" value="{{ csrf_token() }}">

@@ -11,13 +11,14 @@ from __future__ import annotations
 
 import re
 import sqlite3
+import threading
 from pathlib import Path
 
 from flask import current_app, g
 
 SCHEMA = Path(__file__).with_name("schema.sql")
 # À augmenter quand schema.sql change : le schéma (idempotent) est alors rejoué au démarrage.
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 def is_postgres(target: str) -> bool:
@@ -47,7 +48,7 @@ def _row_factory(cursor):
 
 
 # Tables sans colonne « id » : pas d'identifiant à récupérer après un INSERT.
-NO_ID = {"credit_balances", "transfers_done", "login_attempts", "schema_version", "ticket_photos", "user_security"}
+NO_ID = {"credit_balances", "transfers_done", "login_attempts", "schema_version", "ticket_photos", "user_security", "import_files"}
 _INSERT = re.compile(r"\s*INSERT\s+INTO\s+(\w+)", re.IGNORECASE)
 
 
@@ -77,7 +78,10 @@ class Database:
         if self.postgres:
             import psycopg
 
-            self._conn = psycopg.connect(self.target, row_factory=_row_factory, connect_timeout=10)
+            # prepare_threshold=None : pas de requêtes préparées côté serveur, incompatibles avec
+            # le regroupement de connexions de Neon (PgBouncer en mode transaction).
+            self._conn = psycopg.connect(self.target, row_factory=_row_factory, connect_timeout=10,
+                                         prepare_threshold=None)
         else:
             self._conn = sqlite3.connect(self.target, timeout=10)
             self._conn.row_factory = sqlite3.Row
@@ -131,16 +135,25 @@ def connect(target: str) -> Database:
 
 # Sur Vercel, une instance sert plusieurs requêtes à la suite : on garde la connexion
 # Postgres ouverte plutôt que de refaire la poignée de main TLS à chaque page.
-_shared: dict[str, Database] = {}
+# Une connexion par fil d'exécution : deux requêtes simultanées ne partagent jamais une transaction.
+_local = threading.local()
+_all: list[Database] = []
+
+
+def _shared() -> dict[str, Database]:
+    if not hasattr(_local, "conns"):
+        _local.conns = {}
+    return _local.conns
 
 
 def get_db() -> Database:
     if "db" not in g:
         target = current_app.config["DATABASE"]
         if is_postgres(target):
-            db = _shared.get(target)
+            db = _shared().get(target)
             if db is None or not db.usable:
-                db = _shared[target] = connect(target)
+                db = _shared()[target] = connect(target)
+                _all.append(db)
             g.db = db
         else:
             g.db = connect(target)
@@ -155,19 +168,20 @@ def close_db(_exc=None) -> None:
         try:
             db.rollback()      # rien de non validé ne doit fuir vers la requête suivante
         except Exception:      # connexion perdue : elle sera rouverte à la prochaine requête
-            _shared.pop(db.target, None)
+            _shared().pop(db.target, None)
     else:
         db.close()
 
 
 def reset_shared() -> None:
     """Ferme les connexions gardées ouvertes (tests)."""
-    for db in _shared.values():
+    for db in _all:
         try:
             db.close()
         except Exception:
             pass
-    _shared.clear()
+    _all.clear()
+    _shared().clear()
 
 
 def init_schema(conn: Database) -> None:

@@ -59,7 +59,7 @@ def create_app(test_config: dict | None = None) -> Flask:
     app.config["SETTINGS"] = settings
     app.permanent_session_lifetime = timedelta(hours=settings.duree_session_heures)
 
-    if os.environ.get("BUDGET_BEHIND_PROXY") == "1":
+    if os.environ.get("BUDGET_BEHIND_PROXY") == "1" or on_vercel:
         # Derrière Caddy : la vraie adresse du client est dans X-Forwarded-For.
         from werkzeug.middleware.proxy_fix import ProxyFix
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
@@ -76,9 +76,10 @@ def create_app(test_config: dict | None = None) -> Flask:
     app.jinja_env.filters["datefr"] = date_fr
     app.jinja_env.globals["month_label"] = month_label
 
-    from . import auth, cli, views
+    from . import admin, auth, cli, views
     app.jinja_env.globals["csrf_token"] = auth.csrf_token
     app.register_blueprint(auth.bp)
     app.register_blueprint(views.bp)
+    app.register_blueprint(admin.bp)
     cli.register(app)
     return app
