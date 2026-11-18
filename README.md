@@ -53,6 +53,8 @@ Après une modification de `settings.toml` : `docker compose restart app`.
 
 ## Mise en ligne sur Vercel (hébergement choisi)
 
+**L'appli est en ligne : https://budget-perso-psi.vercel.app** (projet Vercel `budget-perso`, base Neon rattachée, mises à jour automatiques à chaque push sur `claude/personal-budget-app-l2w4bt`). Les étapes ci-dessous ne servent qu'à refaire l'installation de zéro.
+
 L'appli tourne sur Vercel avec une base Postgres hébergée par Neon. Rien n'est à installer sur ton ordinateur.
 
 1. **Créer le projet**. Sur [vercel.com](https://vercel.com), « Add New… → Project », importe le dépôt GitHub `Budget-perso`. Dans les réglages du projet (« Settings → Git »), mets **`claude/personal-budget-app-l2w4bt`** comme branche de production. Laisse « Framework Preset » sur « Other » : `vercel.json` fait le reste.

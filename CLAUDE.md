@@ -210,7 +210,8 @@ L'onglet « Orthodontie » d'Excel est un exemple de projet d'achat ; une télé
 - **Achats et tickets** : `budget/receipt.py` (préparation de l'image, extraction du total), `public/static/ocr/ticket.js` (lecture dans le navigateur), table `purchases`, écran `purchase.html`.
 - **Hébergement Vercel** : `api/index.py` (point d'entrée), `vercel.json` (région Paris ; fichiers statiques dans `public/static`, servis directement par Vercel), `.vercelignore`. Variables : `DATABASE_URL` (Neon), `BUDGET_SECRET_KEY`, `BUDGET_SETUP_CODE`. Marche à suivre dans `README.md`.
 - **Réglages** (`budget/admin.py`) : second facteur, import Excel, sauvegarde et restauration. Second facteur dans `budget/totp.py`.
-- **Reste à faire en V1** : premier déploiement réel sur Vercel par Fred (jamais testé sur Vercel même : simulé en local avec Postgres). Net imposable et prélèvement à la source de mars à novembre à saisir à la main.
+- **En ligne** : https://budget-perso-psi.vercel.app (projet Vercel `budget-perso`, base Neon, déploiement automatique à chaque push sur `claude/personal-budget-app-l2w4bt`).
+- **Reste à faire en V1** : première ouverture par Fred (mot de passe, second facteur, import Excel). Net imposable et prélèvement à la source de mars à novembre à saisir à la main.
 
 ## 14. Prochaines étapes
 
