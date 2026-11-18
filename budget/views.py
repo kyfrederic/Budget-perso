@@ -124,10 +124,18 @@ def month(year: int, month: int):
     for l in ctx["m"].lines:
         groups.setdefault(l.account, []).append(l)
     done = store.transfers_done(db, row["id"])
+    # Ce que je dois : reste dû de chaque crédit au mois affiché (dernier solde connu).
+    debts = [
+        rules.credit_status(c["name"], c["target_date"], c["balances"], ctx["m"].idx)
+        for c in store.credits_with_balances(db, g.user_id)
+    ]
+    debts = [d for d in debts if d["balance"] is not None and (d["balance"] > 0 or d["target_date"])]
+    debts.sort(key=lambda d: -d["balance"])
     state = _transfer_state(ctx["summary"], row["salary_net"], done)
     progress = [l for l in ctx["m"].lines if l.diff is not None]
     return render_template(
         "month.html", **ctx, groups=groups, cheques=cheques, done=done, **state,
+        debts=debts, debt_total=sum(max(d["balance"], 0) for d in debts),
         purchases=store.purchases(db, row["id"]),
         stays=[v for v in ctx["summary"].virements if v.kind == "reste"],
         progress=sorted(progress, key=lambda l: -(l.actual / l.planned if l.planned else 9)),

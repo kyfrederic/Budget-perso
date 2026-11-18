@@ -30,6 +30,11 @@ class Line:
     line_id: int | None = None
 
     @property
+    def effective(self) -> int:
+        """Montant retenu : le réel s'il est saisi, sinon le prévu (réel = prévu par défaut)."""
+        return self.actual if self.actual is not None else self.planned
+
+    @property
     def diff(self) -> int | None:
         """Réel − prévu (positif = dépassement). None si le réel n'est pas saisi."""
         if self.actual is None or self.is_reserve:
@@ -55,6 +60,9 @@ class Month:
     # Mois terminé : les économies des postes sont acquises. Tant qu'il est en cours,
     # un poste sous son prévu n'a simplement pas fini d'être dépensé.
     closed: bool = True
+    # Virement « Fin de mois : reste du matelas » coché : le reste a été mis de côté.
+    # Le matelas est une dépense ; son reste ne devient de l'épargne que par ce virement.
+    matelas_saved: bool = False
 
     @property
     def idx(self) -> int:
@@ -80,13 +88,14 @@ class Summary:
     deficit: int           # ce que le matelas n'a pas pu absorber
     epargne_debut: int | None   # salaire − budget
     epargne_postes: int    # postes de catégorie « épargne » (épargne programmée)
-    epargne_mois: int | None    # (salaire − budget) + reste du matelas
+    epargne_mois: int | None    # salaire − budget, + reste du matelas une fois viré au Livret A
     taux_epargne: float | None  # (épargne du mois + épargne programmée) / salaire
     virements: list[Virement]
     n_lines: int
     n_entered: int
     unplanned: int = 0     # somme des achats imprévus payés avec le matelas
     savings_counted: bool = True   # False tant que le mois est en cours (économies pas encore acquises)
+    matelas_saved: bool = False    # reste du matelas viré au Livret A (virement de fin de mois coché)
 
     @property
     def complete(self) -> bool:
@@ -111,7 +120,8 @@ def summarize(month: Month, settings: Settings) -> Summary:
 
     epargne_debut = None if month.salary_net is None else month.salary_net - total
     epargne_postes = sum(l.planned for l in normal if l.category == "epargne")
-    epargne_mois = None if epargne_debut is None else epargne_debut + to_savings_end
+    saved = to_savings_end if month.matelas_saved else 0
+    epargne_mois = None if epargne_debut is None else epargne_debut + saved
     taux = None
     if month.salary_net:
         taux = (epargne_mois + epargne_postes) / month.salary_net * 100
@@ -133,6 +143,7 @@ def summarize(month: Month, settings: Settings) -> Summary:
         n_entered=len(diffs),
         unplanned=unplanned,
         savings_counted=month.closed,
+        matelas_saved=month.matelas_saved,
     )
 
 
@@ -165,21 +176,23 @@ def _virements(month: Month, epargne_debut: int | None, settings: Settings) -> l
 
 
 def split_503020(month: Month, summary: Summary, settings: Settings) -> list[dict]:
-    """Répartition besoins / envies / épargne en % du salaire net.
+    """Répartition besoins / envies / épargne du budget du mois.
 
-    Réel si saisi, sinon prévu. Le matelas n'est pas compté comme un poste :
-    sa part consommée est déjà dans le réel des postes, son reste part en épargne.
+    - postes du budget : réel s'il est saisi, sinon prévu (un dépassement compte donc
+      dans la catégorie de son poste) ;
+    - le matelas ne compte pas en tant que tel, seulement selon son usage : chaque imprévu
+      dans sa catégorie, et son reste en épargne une fois viré au Livret A ;
+    - pourcentages du total de ces montants (et non du salaire).
     """
     montants = dict.fromkeys(CATEGORIES, 0)
     for l in month.lines:
-        if l.is_reserve:
-            continue
-        montants[l.category] += l.actual if l.actual is not None else l.planned
+        if not l.is_reserve:
+            montants[l.category] += l.effective
     for u in month.unplanned:
         montants[u.category] += u.amount
-    if summary.epargne_mois is not None:
-        montants["epargne"] += max(0, summary.epargne_mois)
-    base = month.salary_net or sum(montants.values())
+    if summary.matelas_saved:
+        montants["epargne"] += summary.to_savings_end
+    base = sum(montants.values())
     out = []
     for cat in CATEGORIES:
         pct = montants[cat] / base * 100 if base else 0.0
@@ -388,10 +401,6 @@ def analysis_notes(
     def add(level: str, text: str) -> None:
         notes.append({"level": level, "text": text})
 
-    if not summary.complete:
-        manquants = summary.n_lines - summary.n_entered
-        add("info", f"Analyse partielle : {manquants} poste(s) sans réel saisi (comptés à leur prévu).")
-
     if summary.epargne_debut is not None and summary.epargne_debut < 0:
         add("alert", f"Le budget dépasse le salaire de {format_eur(-summary.epargne_debut)} : "
                      "aucune épargne possible ce mois-ci, revoir les postes.")
@@ -409,7 +418,7 @@ def analysis_notes(
                      "(risque de découvert).")
     elif summary.reserve and summary.matelas_rest == 0:
         add("warn", f"Le matelas a servi en entier ce mois-ci{detail_txt}. Rien à virer en épargne en fin de mois.")
-    elif summary.reserve and (summary.complete or summary.unplanned):
+    elif summary.reserve and (summary.n_entered or summary.unplanned):
         if summary.matelas_rest >= summary.reserve:
             add("ok", f"Matelas intact : {format_eur(summary.to_savings_end)} à virer en épargne.")
         else:
@@ -448,12 +457,12 @@ def analysis_notes(
                             f"{format_eur(manque, decimales=False)} par mois.")
         if by["envies"]["pct"] > cible["envies"]:
             gros = sorted((l for l in month.lines if l.category == "envies"),
-                          key=lambda l: -(l.actual if l.actual is not None else l.planned))[:3]
-            add("warn", f"Envies à {by['envies']['pct']:.0f} % du salaire (cible "
+                          key=lambda l: -l.effective)[:3]
+            add("warn", f"Envies à {by['envies']['pct']:.0f} % du budget (cible "
                         f"{cible['envies']:.0f} %). Plus gros postes : "
                         + ", ".join(l.name for l in gros) + ".")
         if by["besoins"]["pct"] > cible["besoins"]:
-            add("info", f"Besoins à {by['besoins']['pct']:.0f} % du salaire (cible "
+            add("info", f"Besoins à {by['besoins']['pct']:.0f} % du budget (cible "
                         f"{cible['besoins']:.0f} %) : gagner en pouvoir d'achat passe par les "
                         "gros contrats (assurances, énergie, abonnements à renégocier).")
 

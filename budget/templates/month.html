@@ -4,24 +4,51 @@
 {% block content %}
 {% set titre = "Budget de" %}{% include "_monthnav.html" %}
 
-{# ---- En premier : l'épargne du mois et le matelas ---- #}
+{# ---- En premier : ce que je dois ---- #}
+<section class="hero debts">
+  <div class="debts-head">
+    <p class="hero-label">Ce que je dois</p>
+    <p class="hero-big">{% if debts %}<span data-count="{{ debt_total }}">{{ debt_total|eur(decimales=False) }}</span>{% else %}0 €{% endif %}</p>
+    <p class="hero-sub">{% if debts %}reste dû sur {{ debts|selectattr('balance', 'gt', 0)|list|length }} crédit{{ 's' if debts|selectattr('balance', 'gt', 0)|list|length > 1 }}{% else %}Aucun crédit en cours. <a href="{{ url_for('views.credits') }}">Suivre un crédit</a>{% endif %}</p>
+  </div>
+  {% if debts %}
+  <ul class="debt-list">
+    {% for d in debts %}
+    <li class="{% if d.on_track is false and d.balance > 0 %}late{% endif %}">
+      <div><b>{{ d.name }}</b>
+        <small>{% if d.balance <= 0 %}soldé{% if d.target_date %} avant l'objectif du {{ d.target_date|datefr }}{% endif %}
+          {% else %}{% if d.delta is not none and d.delta < 0 %}{{ d.delta|eur(signe=True, decimales=False) }} depuis le mois précédent{% elif d.delta is not none and d.delta > 0 %}{{ d.delta|eur(signe=True, decimales=False) }} depuis le mois précédent{% endif %}
+          {% if d.target_date %}{% if d.delta is not none %} · {% endif %}objectif {{ d.target_date|datefr }}{% if d.on_track is true %}, tenable{% elif d.on_track is false %}, rythme à revoir{% endif %}{% endif %}{% endif %}</small></div>
+      <b class="amount">{% if d.balance > 0 %}{{ d.balance|eur(decimales=False) }}{% else %}✓{% endif %}</b>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  <p class="debts-link"><a href="{{ url_for('views.credits') }}">Mettre à jour les soldes</a></p>
+</section>
+
+{# ---- Épargne du mois et matelas, en plus petit ---- #}
 {% set C = 226.2 %}
 {% set frac = ([[summary.matelas_rest, 0]|max, summary.reserve]|min / summary.reserve) if summary.reserve else 0 %}
-<section class="hero {% if summary.reserve and summary.matelas_rest <= 0 %}tight{% endif %}">
-  <div>
+<section class="month-strip">
+  <div class="strip-block">
     <p class="hero-label">Épargne du mois</p>
-    {% if summary.epargne_mois is not none %}
-    <p class="hero-big"><span data-count="{{ summary.epargne_mois }}">{{ summary.epargne_mois|eur(decimales=False) }}</span></p>
-    <p class="hero-sub">{% if summary.taux_epargne is not none %}{{ '%.0f'|format(summary.taux_epargne) }} % de ton salaire mis de côté, épargne programmée comprise{% endif %}</p>
-    {% else %}
-    <p class="hero-big">—</p>
-    <p class="hero-sub">Saisis ton salaire plus bas pour la calculer.</p>
-    {% endif %}
+    <p class="strip-big">{% if summary.epargne_mois is not none %}<span data-count="{{ summary.epargne_mois }}">{{ summary.epargne_mois|eur(decimales=False) }}</span>{% else %}—{% endif %}</p>
+    <p class="muted small">{% if summary.epargne_mois is none %}Saisis ton salaire plus bas.
+      {% elif summary.matelas_saved %}salaire − budget + reste du matelas viré au Livret A
+      {% elif summary.reserve and summary.to_savings_end > 0 %}salaire − budget ; le reste du matelas s'y ajoutera si tu le vires en fin de mois
+      {% else %}salaire − budget{% endif %}</p>
   </div>
   {% if summary.reserve %}
-  <div class="ring" role="img" aria-label="Matelas : il reste {{ summary.matelas_rest|eur(decimales=False) }} sur {{ summary.reserve|eur(decimales=False) }}">
-    <svg viewBox="0 0 86 86" width="96" height="96" aria-hidden="true"><circle class="t" cx="43" cy="43" r="36"/><circle class="v" cx="43" cy="43" r="36" stroke-dasharray="{{ C }}" stroke-dashoffset="{{ '%.1f'|format(C * (1 - frac)) }}" data-ring/></svg>
-    <span><b data-count="{{ summary.matelas_rest }}">{{ summary.matelas_rest|eur(decimales=False) }}</b>matelas</span>
+  <div class="strip-block matelas {% if summary.matelas_rest <= 0 %}tight{% endif %}">
+    <div class="ring small" role="img" aria-label="Matelas : il reste {{ summary.matelas_rest|eur(decimales=False) }} sur {{ summary.reserve|eur(decimales=False) }}">
+      <svg viewBox="0 0 86 86" width="64" height="64" aria-hidden="true"><circle class="t" cx="43" cy="43" r="36"/><circle class="v" cx="43" cy="43" r="36" stroke-dasharray="{{ C }}" stroke-dashoffset="{{ '%.1f'|format(C * (1 - frac)) }}" data-ring/></svg>
+    </div>
+    <div>
+      <p class="hero-label">Matelas disponible</p>
+      <p class="strip-big"><b data-count="{{ summary.matelas_rest }}">{{ summary.matelas_rest|eur(decimales=False) }}</b></p>
+      <p class="muted small">sur {{ summary.reserve|eur(decimales=False) }}, pour les imprévus et les dépassements</p>
+    </div>
   </div>
   {% endif %}
 </section>
@@ -29,7 +56,7 @@
 <dl class="facts">
   <div><dt>Salaire reçu fin {{ salary_month }}</dt><dd>{{ row.salary_net|eur(decimales=False) }}</dd></div>
   <div><dt>Budget du mois</dt><dd>{{ summary.total_budget|eur(decimales=False) }}</dd></div>
-  <div><dt>Épargne à réception</dt><dd>{{ summary.epargne_debut|eur(decimales=False) }}</dd></div>
+  <div><dt>Taux d'épargne</dt><dd>{% if summary.taux_epargne is not none %}{{ '%.0f'|format(summary.taux_epargne) }} %{% else %}—{% endif %}</dd></div>
 </dl>
 
 <p class="add-row">
@@ -171,7 +198,7 @@
 
   <h2>Postes</h2>
   <div class="lines">
-    <div class="line head"><span>Poste</span><span>Prévu</span><span>Réel</span><span>Écart</span><span title="Pour information, jamais additionné">Part Laetitia</span><span></span></div>
+    <div class="line head"><span>Poste</span><span>Prévu</span><span title="Vide = égal au prévu">Réel</span><span>Écart</span><span title="Pour information, jamais additionné">Part Laetitia</span><span></span></div>
     {% for account, lines in groups.items() %}
     <div class="group {{ account_class(account) }}"><span class="dot"></span>{{ account }} <b>{{ lines|sum(attribute='planned')|eur }}</b></div>
     {% for l in lines %}
@@ -187,7 +214,7 @@
       <span class="computed"><span class="lbl">Reste</span>{{ summary.matelas_rest|eur }}</span>
       <span></span><span></span><span></span>
       {% else %}
-      <label class="c-actual"><span class="lbl">Réel</span><input name="actual_{{ l.line_id }}" inputmode="decimal" value="{{ l.actual|saisie }}" placeholder="—" aria-label="Réel {{ l.name }}"></label>
+      <label class="c-actual"><span class="lbl">Réel</span><input name="actual_{{ l.line_id }}" inputmode="decimal" value="{{ l.actual|saisie }}" placeholder="{{ l.planned|saisie }}" title="Laisse vide si le réel est égal au prévu" aria-label="Réel {{ l.name }}"></label>
       <span class="diff {% if l.diff and l.diff > 0 %}over{% elif l.diff and l.diff < 0 %}under{% endif %}">{% if l.diff is not none %}{{ l.diff|eur(signe=True) }}{% endif %}</span>
       <label class="partner"><span class="lbl">Laetitia</span><input name="partner_{{ l.line_id }}" inputmode="decimal" value="{{ l.info_partner|saisie }}" aria-label="Part de Laetitia {{ l.name }}"></label>
       <button class="link rm" formaction="{{ url_for('views.line_remove', year=m.year, month=m.month, line_id=l.line_id) }}" formnovalidate title="Retirer ce poste de ce mois" aria-label="Retirer {{ l.name }} de ce mois">{{ icon('retirer', 18) }}</button>

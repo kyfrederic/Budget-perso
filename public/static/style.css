@@ -199,6 +199,27 @@ a.arrow.plus:hover { background: var(--primary-hover); border-color: var(--prima
 .facts dt { font-size: .75rem; color: var(--muted-fg); line-height: 1.3; }
 .facts dd { margin: 2px 0 0; font-weight: 700; font-size: 1.0625rem; white-space: nowrap; }
 
+/* Ce que je dois */
+.hero.debts { display: block; }
+.debts-head { position: relative; z-index: 1; }
+.debt-list { list-style: none; margin: var(--s4) 0 0; padding: 0; position: relative; z-index: 1; }
+.debt-list li { display: flex; align-items: center; gap: var(--s3); padding: var(--s2) 0; border-top: 1px solid color-mix(in srgb, var(--fg) 12%, transparent); }
+.debt-list li > div { flex: 1; min-width: 0; }
+.debt-list small { display: block; color: var(--muted-fg); font-size: .8125rem; }
+.debt-list li.late small { color: var(--clay); font-weight: 600; }
+.debts-link { margin: var(--s3) 0 0 !important; font-size: .875rem; position: relative; z-index: 1; }
+
+/* Épargne du mois et matelas, en petit */
+.month-strip { display: grid; grid-template-columns: 1fr; gap: var(--s2); margin: 0 0 var(--s3); }
+.strip-block { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-s); padding: var(--s3) var(--s4); display: flex; flex-direction: column; min-width: 0; }
+.strip-block p { margin: 0; }
+.strip-block.matelas { flex-direction: row; align-items: center; gap: var(--s3); }
+.strip-block.matelas.tight { background: var(--clay-bg); border-color: transparent; }
+.strip-block.matelas.tight .ring .v { stroke: var(--clay-fill); }
+.strip-big { font-size: 1.5rem; font-weight: 800; letter-spacing: -.02em; line-height: 1.2; white-space: nowrap; }
+.ring.small { width: 64px; height: 64px; flex: none; }
+.ring.small svg { width: 64px; height: 64px; }
+
 /* Tuiles (analyse) */
 .tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s2); margin-bottom: var(--s3); }
 .tile { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-s); padding: var(--s3) var(--s4); min-width: 0; }
@@ -394,8 +415,9 @@ td.bar { width: 28%; min-width: 60px; }
   .hero { padding: var(--s6); }
   .hero-big { font-size: 3.4rem; }
   .hero-sub { max-width: none; }
-  .ring { width: 120px; height: 120px; }
-  .ring svg { width: 120px; height: 120px; }
+  .ring:not(.small) { width: 120px; height: 120px; }
+  .ring:not(.small) svg { width: 120px; height: 120px; }
+  .month-strip { grid-template-columns: 1fr 1fr; }
   .ring > span { font-size: .8125rem; } .ring > span b { font-size: 1.125rem; }
   .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)) 1.4fr; gap: var(--s3); }
   .tile.hero-tile { grid-column: auto; }

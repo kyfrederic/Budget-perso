@@ -54,6 +54,11 @@ empattements, plus lisible pour des chiffres).
 - L'écran du mois s'ouvre sur l'épargne du mois, en grand.
 - Un écart porte toujours son signe (`+` ou `−`), un message porte une icône : la couleur ne fait que renforcer.
 
+## Écran du mois
+
+- En tête : bandeau « Ce que je dois » (fond sauge) : total dû en grand, une ligne par crédit ; un objectif de date pas tenable passe en argile, un crédit soldé porte une coche.
+- Juste dessous, deux blocs compacts : épargne du mois, et matelas disponible avec un petit anneau (argile quand il est vide).
+
 ## Achats et matelas
 
 - Le bouton « Ajouter un achat » est sous le bandeau de l'épargne ; sur téléphone, le champ photo ouvre l'appareil photo.

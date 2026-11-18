@@ -43,7 +43,10 @@ def load_month(db, row) -> Month:
     ]
     today = date.today()
     closed = month_index(row["year"], row["month"]) < month_index(today.year, today.month)
-    return Month(row["year"], row["month"], row["salary_net"], lines, unplanned, closed)
+    saved = db.execute(
+        "SELECT 1 FROM transfers_done WHERE month_id = ? AND kind = 'fin'", (row["id"],)
+    ).fetchone() is not None
+    return Month(row["year"], row["month"], row["salary_net"], lines, unplanned, closed, saved)
 
 
 def list_months(db, user_id: int) -> list:

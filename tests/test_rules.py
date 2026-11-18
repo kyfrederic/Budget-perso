@@ -41,7 +41,12 @@ def test_epargne_sans_reel(settings):
     assert s.total_budget == E(2410)
     assert s.epargne_debut == E(590)
     assert s.matelas_rest == E(500)          # rien de saisi : matelas intact
-    assert s.epargne_mois == E(1090)         # (salaire − budget) + reste du matelas
+    # Le matelas est une dépense : l'épargne du mois n'est que salaire − budget…
+    assert s.epargne_mois == E(590)
+    # …jusqu'à ce que son reste soit viré au Livret A (virement de fin de mois coché).
+    m = mois()
+    m.matelas_saved = True
+    assert summarize(m, settings).epargne_mois == E(590 + 500)
 
 
 def test_depassement_pris_dans_le_matelas(settings):
@@ -57,7 +62,7 @@ def test_les_economies_compensent(settings):
     s = summarize(mois(Nourriture=470, Électricité=110), settings)
     assert s.overruns == E(70) and s.savings == E(40)
     assert s.matelas_rest == E(470)
-    assert s.epargne_mois == E(590 + 470)
+    assert s.epargne_mois == E(590)                       # reste pas encore viré
 
 
 def test_alerte_quand_le_matelas_ne_suffit_plus(settings):
@@ -89,10 +94,32 @@ def test_virements_par_compte(settings):
 def test_503020(settings):
     m = mois()
     split = {s["key"]: s for s in split_503020(m, summarize(m, settings), settings)}
+    # Budget du mois, matelas exclu : 1 450 + 260 + 200 = 1 910 €.
     assert split["besoins"]["amount"] == E(1450)
     assert split["envies"]["amount"] == E(260)
-    assert split["epargne"]["amount"] == E(200 + 1090)
+    assert split["epargne"]["amount"] == E(200)          # ni le salaire − budget, ni le matelas
+    assert round(split["besoins"]["pct"], 1) == round(1450 / 1910 * 100, 1)
     assert round(sum(s["pct"] for s in split.values())) == 100
+
+
+def test_503020_matelas_selon_usage(settings):
+    m = mois(Nourriture=470)                              # dépassement de 70 € sur un besoin
+    m.unplanned = [Unplanned("Resto", E(60)), Unplanned("Facture eau", E(40), "besoins")]
+    m.matelas_saved = True                                # reste viré au Livret A
+    s = summarize(m, settings)
+    assert s.to_savings_end == E(500 - 70 - 100)
+    split = {x["key"]: x for x in split_503020(m, s, settings)}
+    assert split["besoins"]["amount"] == E(1450 + 70 + 40)
+    assert split["envies"]["amount"] == E(260 + 60)
+    assert split["epargne"]["amount"] == E(200 + 330)
+    assert round(sum(x["pct"] for x in split.values())) == 100
+
+
+def test_poste_non_saisi_vaut_son_prevu(settings):
+    m = mois(Nourriture=470)
+    by = {l.name: l for l in m.lines}
+    assert by["Navigo" if "Navigo" in by else "Abonnements"].effective == by["Abonnements"].planned
+    assert by["Nourriture"].effective == E(470)
 
 
 # --------------------------------------------------------- propositions
@@ -206,7 +233,7 @@ def test_imprevus_pris_sur_le_matelas(settings):
     s = summarize(avec_imprevus(62, 120), settings)
     assert s.unplanned == E(182)
     assert s.matelas_rest == E(318) and s.to_savings_end == E(318)
-    assert s.epargne_mois == E(590 + 318)
+    assert s.epargne_mois == E(590)
 
 
 def test_imprevus_depassements_et_economies(settings):

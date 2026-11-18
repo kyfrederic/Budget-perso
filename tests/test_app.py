@@ -141,6 +141,11 @@ def test_postes_et_credits(app, client):
         client.post(f"/credits/{cid}/solde", data={"csrf": t, "year": 2026, "month": month, "balance": bal})
     page = client.get("/credits").get_data(as_text=True)
     assert "800,00" in page and "−200,00" in page
+    # L'écran du mois s'ouvre sur ce que je dois : total et détail du crédit.
+    import html
+    mois = html.unescape(client.get("/mois/2026/10").get_data(as_text=True))
+    assert "Ce que je dois" in mois and 'data-count="80000"' in mois
+    assert "Crédit renouvelable" in mois and "−200" in mois and "objectif 31/12/2026" in mois
 
 
 def test_montant_invalide(app, client):

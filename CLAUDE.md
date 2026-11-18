@@ -201,6 +201,15 @@ L'onglet « Orthodontie » d'Excel est un exemple de projet d'achat ; une télé
 | Second facteur | **Ajouté** (remplace le « Non en V1 » du 2026-11-13) : code à 6 chiffres, codes de secours, proposé dès la mise en route. |
 | Sauvegarde | Fichier téléchargé depuis les Réglages (sans les photos) + historique de Neon. Remplace la sauvegarde nocturne automatique hors du VPS, à réintroduire plus tard si besoin. |
 
+### Décisions du 2026-11-18 (écran du mois, matelas, 50-30-20)
+
+| Sujet | Décision |
+|---|---|
+| Écran du mois | S'ouvre sur **« Ce que je dois »** : total dû et chaque crédit (reste dû, évolution, objectif). L'épargne du mois et le matelas passent en dessous, en plus petit. |
+| Matelas | **Ligne de dépense, pas de l'épargne** : il peut servir à tout moment. L'épargne du mois = salaire − budget ; le reste du matelas ne s'y ajoute que lorsqu'il est **viré au Livret A** (virement de fin de mois coché). Remplace « L'épargne du mois = (salaire − budget) + reste du matelas » de la section 3. |
+| Réel par défaut | **Réel = prévu** tant que rien n'est saisi ; un réel saisi ou des achats notés sur le poste le remplacent. |
+| 50-30-20 | Porte sur le **budget du mois** (pourcentages de ce budget, plus du salaire). Le matelas ne compte pas par défaut, seulement **selon son usage** : chaque imprévu dans sa catégorie (envies ou besoins), un dépassement dans la catégorie de son poste, le reste en épargne s'il est viré au Livret A. |
+
 ## 13 ter. État de la V1
 
 - Stack : Flask + SQLite + pages côté serveur (voir `README.md` pour lancer, configurer et déployer).

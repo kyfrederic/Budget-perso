@@ -34,7 +34,7 @@
 <section class="card">
   <h2>Répartition 50-30-20</h2>
   <table class="plain">
-    <thead><tr><th>Catégorie</th><th class="num">Montant</th><th class="num">Part du salaire</th><th class="num">Cible</th><th></th></tr></thead>
+    <thead><tr><th>Catégorie</th><th class="num">Montant</th><th class="num">Part du budget</th><th class="num">Cible</th><th></th></tr></thead>
     <tbody>
     {% for s in split %}
     <tr><td>{{ s.label }}</td><td class="num">{{ s.amount|eur }}</td>
@@ -43,7 +43,7 @@
     {% endfor %}
     </tbody>
   </table>
-  <p class="muted small">Réel quand il est saisi, sinon prévu. Le reste du matelas est compté en épargne.</p>
+  <p class="muted small">Budget du mois, réel quand il est saisi, sinon prévu. Le matelas compte selon son usage : chaque imprévu dans sa catégorie, son reste en épargne une fois viré au Livret A.</p>
 </section>
 
 <section class="card">
