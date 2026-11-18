@@ -210,6 +210,13 @@ L'onglet « Orthodontie » d'Excel est un exemple de projet d'achat ; une télé
 | Réel par défaut | **Réel = prévu** tant que rien n'est saisi ; un réel saisi ou des achats notés sur le poste le remplacent. |
 | 50-30-20 | Porte sur le **budget du mois** (pourcentages de ce budget, plus du salaire). Le matelas ne compte pas par défaut, seulement **selon son usage** : chaque imprévu dans sa catégorie (envies ou besoins), un dépassement dans la catégorie de son poste, le reste en épargne s'il est viré au Livret A. |
 
+### Décisions du 2026-11-18 (suite : catégories, crédits)
+
+| Sujet | Décision |
+|---|---|
+| Catégories | Les postes sont **listés par catégorie** : Charges fixes (ex-« besoins »), Envies, Épargne, puis le matelas à part ; la banque est indiquée sur chaque ligne. Les virements restent calculés par banque. |
+| « Ce que je dois » | Une carte légère par crédit : reste dû, barre de la part remboursée (depuis le plus haut solde connu), évolution du mois, objectif en étiquette ; crédits soldés estompés en dernier. |
+
 ## 13 ter. État de la V1
 
 - Stack : Flask + SQLite + pages côté serveur (voir `README.md` pour lancer, configurer et déployer).

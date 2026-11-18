@@ -202,11 +202,18 @@ a.arrow.plus:hover { background: var(--primary-hover); border-color: var(--prima
 /* Ce que je dois */
 .hero.debts { display: block; }
 .debts-head { position: relative; z-index: 1; }
-.debt-list { list-style: none; margin: var(--s4) 0 0; padding: 0; position: relative; z-index: 1; }
-.debt-list li { display: flex; align-items: center; gap: var(--s3); padding: var(--s2) 0; border-top: 1px solid color-mix(in srgb, var(--fg) 12%, transparent); }
-.debt-list li > div { flex: 1; min-width: 0; }
-.debt-list small { display: block; color: var(--muted-fg); font-size: .8125rem; }
-.debt-list li.late small { color: var(--clay); font-weight: 600; }
+.debt-list { list-style: none; margin: var(--s4) 0 0; padding: 0; position: relative; z-index: 1; display: grid; gap: var(--s2); }
+.debt { background: color-mix(in srgb, var(--card) 72%, transparent); border-radius: var(--radius-s); padding: var(--s3) var(--s4); display: grid; gap: var(--s2); }
+.debt-top { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); }
+.debt-name { font-weight: 500; min-width: 0; }
+.debt-amount { font-weight: 600; font-size: 1.0625rem; white-space: nowrap; }
+.debt-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s1) var(--s3); font-size: .8125rem; color: var(--muted-fg); }
+.debt.done { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); padding-block: var(--s2); background: transparent; border: 1px dashed color-mix(in srgb, var(--fg) 18%, transparent); color: var(--muted-fg); }
+.pill { display: inline-block; padding: 1px 10px; border-radius: var(--pill); font-size: .75rem; font-weight: 500; background: var(--card); color: var(--muted-fg); white-space: nowrap; }
+.pill.ok { color: var(--positive); background: var(--leaf-bg); }
+.pill.late { color: var(--clay); background: var(--clay-bg); }
+progress.bar.thin { height: 5px; background: color-mix(in srgb, var(--fg) 10%, transparent); }
+progress.bar.thin::-webkit-progress-bar { background: color-mix(in srgb, var(--fg) 10%, transparent); }
 .debts-link { margin: var(--s3) 0 0 !important; font-size: .875rem; position: relative; z-index: 1; }
 
 /* Épargne du mois et matelas, en petit */
@@ -321,6 +328,17 @@ h1.page small { font-size: 1rem; font-weight: 500; }
 .lines { margin-bottom: var(--s4); }
 .group { display: flex; align-items: center; gap: var(--s2); font-weight: 700; margin: var(--s5) 0 0; padding: var(--s2) 0; border-bottom: 2px solid var(--cpt); }
 .group b { margin-left: auto; font-weight: 700; }
+.group small { font-weight: 400; font-size: .8125rem; }
+.group[class*="cat-"] { border-bottom-color: var(--cat); }
+.cat-besoins { --cat: #3F6B3A; } .cat-envies { --cat: #B8623A; } .cat-epargne { --cat: #4F8A9A; } .cat-matelas { --cat: #8A9A80; }
+.cat-mark { width: 10px; height: 10px; border-radius: 3px; background: var(--cat); flex: none; display: inline-block; }
+.line .name .bank { display: flex; align-items: center; gap: 6px; font-weight: 400; font-size: .8125rem; color: var(--muted-fg); margin-top: 1px; }
+.line .name .bank .dot { width: 8px; height: 8px; }
+.cat-title { margin: var(--s5) 0 var(--s2); color: var(--fg); font-size: 1rem; }
+.cat-title > span:first-child { display: inline-flex; align-items: center; gap: var(--s2); }
+tr.cat-row td { background: var(--bg); }
+.sub-cat { display: flex; align-items: center; gap: var(--s2); font-size: .8125rem; font-weight: 600; color: var(--muted-fg); margin: var(--s4) 0 0 !important; }
+.sub-cat:first-of-type { margin-top: 0 !important; }
 .line {
   display: grid; grid-template-columns: 1fr 1fr 1fr 44px; gap: var(--s1) var(--s2); padding: var(--s3) 0;
   grid-template-areas: "name name diff rm" "planned actual partner partner";

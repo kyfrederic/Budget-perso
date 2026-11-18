@@ -6,21 +6,37 @@
 
 {# ---- En premier : ce que je dois ---- #}
 <section class="hero debts">
+  {% set open_debts = debts|selectattr('balance', 'gt', 0)|list %}
   <div class="debts-head">
     <p class="hero-label">Ce que je dois</p>
-    <p class="hero-big">{% if debts %}<span data-count="{{ debt_total }}">{{ debt_total|eur(decimales=False) }}</span>{% else %}0 €{% endif %}</p>
-    <p class="hero-sub">{% if debts %}reste dû sur {{ debts|selectattr('balance', 'gt', 0)|list|length }} crédit{{ 's' if debts|selectattr('balance', 'gt', 0)|list|length > 1 }}{% else %}Aucun crédit en cours. <a href="{{ url_for('views.credits') }}">Suivre un crédit</a>{% endif %}</p>
+    <p class="hero-big">{% if open_debts %}<span data-count="{{ debt_total }}">{{ debt_total|eur(decimales=False) }}</span>{% else %}0 €{% endif %}</p>
+    <p class="hero-sub">{% if open_debts %}reste dû sur {{ open_debts|length }} crédit{{ 's' if open_debts|length > 1 }}{% if debt_delta < 0 %} · {{ debt_delta|eur(signe=True, decimales=False) }} ce mois{% endif %}
+      {% elif debts %}Tous tes crédits suivis sont soldés.
+      {% else %}Aucun crédit en cours. <a href="{{ url_for('views.credits') }}">Suivre un crédit</a>{% endif %}</p>
   </div>
   {% if debts %}
   <ul class="debt-list">
     {% for d in debts %}
-    <li class="{% if d.on_track is false and d.balance > 0 %}late{% endif %}">
-      <div><b>{{ d.name }}</b>
-        <small>{% if d.balance <= 0 %}soldé{% if d.target_date %} avant l'objectif du {{ d.target_date|datefr }}{% endif %}
-          {% else %}{% if d.delta is not none and d.delta < 0 %}{{ d.delta|eur(signe=True, decimales=False) }} depuis le mois précédent{% elif d.delta is not none and d.delta > 0 %}{{ d.delta|eur(signe=True, decimales=False) }} depuis le mois précédent{% endif %}
-          {% if d.target_date %}{% if d.delta is not none %} · {% endif %}objectif {{ d.target_date|datefr }}{% if d.on_track is true %}, tenable{% elif d.on_track is false %}, rythme à revoir{% endif %}{% endif %}{% endif %}</small></div>
-      <b class="amount">{% if d.balance > 0 %}{{ d.balance|eur(decimales=False) }}{% else %}✓{% endif %}</b>
+    {% if d.balance > 0 %}
+    <li class="debt">
+      <div class="debt-top">
+        <span class="debt-name">{{ d.name[:1]|upper }}{{ d.name[1:] }}</span>
+        <span class="debt-amount">{{ d.balance|eur(decimales=False) }}</span>
+      </div>
+      {% if d.repaid_pct is not none and d.repaid_pct > 0 %}
+      <progress class="bar thin" max="100" value="{{ d.repaid_pct }}" data-bar aria-label="Part remboursée">{{ d.repaid_pct }} %</progress>
+      {% endif %}
+      <div class="debt-meta">
+        <span>{% if d.delta is not none and d.delta != 0 %}{{ d.delta|eur(signe=True, decimales=False) }} ce mois{% else %}inchangé ce mois{% endif %}{% if d.repaid_pct %} · {{ d.repaid_pct }} % remboursé{% endif %}</span>
+        {% if d.target_date %}<span class="pill {{ 'ok' if d.on_track is true else ('late' if d.on_track is false else '') }}">avant le {{ d.target_date|datefr }}{% if d.on_track is true %} · tenable{% elif d.on_track is false %} · rythme à revoir{% endif %}</span>{% endif %}
+      </div>
     </li>
+    {% else %}
+    <li class="debt done">
+      <span class="debt-name">{{ d.name[:1]|upper }}{{ d.name[1:] }}</span>
+      <span class="pill ok">Soldé{% if d.target_date %} avant l'objectif{% endif %}</span>
+    </li>
+    {% endif %}
     {% endfor %}
   </ul>
   {% endif %}
@@ -173,15 +189,22 @@
 {# ---- Où tu en es ---- #}
 <section class="card">
   <h2>Où tu en es <span class="count">{{ summary.n_entered }} sur {{ summary.n_lines }} postes saisis</span></h2>
-  {% for l in progress %}
+  {% for key, label in [('besoins', 'Charges fixes'), ('envies', 'Envies'), ('epargne', 'Épargne')] %}
+  {% set items = progress|selectattr('category', 'equalto', key)|list %}
+  {% if items %}
+  <p class="sub-cat cat-{{ key }}"><span class="cat-mark"></span>{{ label }}</p>
+  {% for l in items %}
   <div class="poste {% if l.diff > 0 %}over{% endif %}">
     <header><span><span class="dot {{ account_class(l.account) }}"></span> {{ l.name }}</span>
       <span>{{ l.actual|eur(decimales=False) }} sur {{ l.planned|eur(decimales=False) }}{% if l.diff > 0 %} · {{ l.diff|eur(signe=True, decimales=False) }}{% endif %}</span></header>
     <progress class="bar" max="{{ [l.planned, 1]|max }}" value="{{ [l.actual, l.planned]|min if l.actual > 0 else 0 }}" data-bar>{{ l.actual|eur }}</progress>
   </div>
-  {% else %}
-  <p class="muted">Rien de saisi pour l'instant. Quand tu notes un réel plus bas, il apparaît ici.</p>
   {% endfor %}
+  {% endif %}
+  {% endfor %}
+  {% if not progress %}
+  <p class="muted">Rien de saisi pour l'instant. Quand tu notes un réel plus bas, il apparaît ici.</p>
+  {% endif %}
 </section>
 
 <form method="post" class="card" id="mois">
@@ -199,15 +222,12 @@
   <h2>Postes</h2>
   <div class="lines">
     <div class="line head"><span>Poste</span><span>Prévu</span><span title="Vide = égal au prévu">Réel</span><span>Écart</span><span title="Pour information, jamais additionné">Part Laetitia</span><span></span></div>
-    {% for account, lines in groups.items() %}
-    <div class="group {{ account_class(account) }}"><span class="dot"></span>{{ account }} <b>{{ lines|sum(attribute='planned')|eur }}</b></div>
-    {% for l in lines %}
+    {% macro poste_line(l) %}
     <div class="line">
       <span class="name">{{ l.name }}
-        {% if l.debit_day %}<small class="muted">le {{ l.debit_day }}</small>{% endif %}
+        <small class="bank {{ account_class(l.account) }}"><span class="dot"></span>{{ l.account }}{% if l.debit_day %} · le {{ l.debit_day }}{% endif %}</small>
         {% if l.seasonal %}<span class="badge">saisonnier</span>{% endif %}
         {% if l.contractual %}<span class="badge">contractuel</span>{% endif %}
-        {% if l.is_reserve %}<span class="badge">matelas</span>{% endif %}
       </span>
       <label class="c-planned"><span class="lbl">Prévu</span><input name="planned_{{ l.line_id }}" inputmode="decimal" value="{{ l.planned|saisie }}" aria-label="Prévu {{ l.name }}"></label>
       {% if l.is_reserve %}
@@ -220,8 +240,15 @@
       <button class="link rm" formaction="{{ url_for('views.line_remove', year=m.year, month=m.month, line_id=l.line_id) }}" formnovalidate title="Retirer ce poste de ce mois" aria-label="Retirer {{ l.name }} de ce mois">{{ icon('retirer', 18) }}</button>
       {% endif %}
     </div>
+    {% endmacro %}
+    {% for grp in cat_groups %}
+    <div class="group cat-{{ grp.key }}"><span class="cat-mark"></span>{{ grp.label }} <small class="muted">{{ '%.0f'|format(grp.pct) }} % du budget</small><b>{{ grp.total|eur }}</b></div>
+    {% for l in grp.lines %}{{ poste_line(l) }}{% endfor %}
     {% endfor %}
-    {% endfor %}
+    {% if reserve_lines %}
+    <div class="group cat-matelas"><span class="cat-mark"></span>Matelas <small class="muted">pour les imprévus et les dépassements</small><b>{{ reserve_lines|sum(attribute='planned')|eur }}</b></div>
+    {% for l in reserve_lines %}{{ poste_line(l) }}{% endfor %}
+    {% endif %}
     <div class="line total"><span>Total</span><span>{{ summary.total_budget|eur }}</span><span></span><span></span><span></span><span></span></div>
   </div>
   <label>Notes du mois <textarea name="notes" rows="2">{{ row.notes }}</textarea></label>

@@ -22,7 +22,11 @@
   <button class="primary">Ajouter</button>
 </form>
 
-{% for p in postes %}
+{% for key, label in [('besoins', 'Charges fixes'), ('envies', 'Envies'), ('epargne', 'Épargne'), ('matelas', 'Matelas')] %}
+{% set items = postes|selectattr('is_reserve')|list if key == 'matelas' else postes|rejectattr('is_reserve')|selectattr('category', 'equalto', key)|list %}
+{% if items %}
+<h2 class="cat-title cat-{{ key }}"><span><span class="cat-mark"></span> {{ label }}</span><span class="count">{{ items|length }} poste{{ 's' if items|length > 1 }}</span></h2>
+{% for p in items %}
 <form method="post" action="{{ url_for('views.poste_update', poste_id=p.id) }}" class="card poste-form {{ account_class(p.account) }} {% if not p.active %}inactive{% endif %}">
   <input type="hidden" name="csrf" value="{{ csrf_token() }}">
   <div class="fields">
@@ -32,8 +36,11 @@
     <button class="small">Enregistrer</button>
   </div>
 </form>
-{% else %}
-<p class="note warn">Aucun poste. Charge le modèle avec <code>flask --app budget charger-modele</code> ou crée-les ci-dessus.</p>
 {% endfor %}
+{% endif %}
+{% endfor %}
+{% if not postes %}
+<p class="note warn">Aucun poste. Charge le modèle avec <code>flask --app budget charger-modele</code> ou crée-les ci-dessus.</p>
+{% endif %}
 <p class="muted small">Un poste inactif reste dans l'historique mais n'est plus copié dans les nouveaux mois.</p>
 {% endblock %}

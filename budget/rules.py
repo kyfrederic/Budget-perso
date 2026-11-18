@@ -11,7 +11,7 @@ from .money import MOIS_FR, date_fr, format_eur, from_index, month_index, month_
 from .settings import Settings
 
 CATEGORIES = ("besoins", "envies", "epargne")
-CATEGORIES_LABEL = {"besoins": "Besoins", "envies": "Envies", "epargne": "Épargne"}
+CATEGORIES_LABEL = {"besoins": "Charges fixes", "envies": "Envies", "epargne": "Épargne"}
 
 
 @dataclass
@@ -358,10 +358,15 @@ def credit_status(name: str, target_date: str | None, balances: list[tuple[int, 
     st = {
         "name": name, "target_date": target_date, "balance": None, "delta": None,
         "pace": None, "needed": None, "on_track": None, "months_left": None, "last_idx": None,
+        "peak": None, "repaid_pct": None,
     }
     if not pts:
         return st
     st["last_idx"], st["balance"] = pts[-1]
+    # Part remboursée depuis le plus haut solde connu (pas de montant emprunté en base).
+    st["peak"] = max(b for _, b in pts)
+    if st["peak"] > 0:
+        st["repaid_pct"] = round(100 * (st["peak"] - max(st["balance"], 0)) / st["peak"])
     if len(pts) >= 2:
         st["delta"] = pts[-1][1] - pts[-2][1]
         recent = pts[-4:]
@@ -462,7 +467,7 @@ def analysis_notes(
                         f"{cible['envies']:.0f} %). Plus gros postes : "
                         + ", ".join(l.name for l in gros) + ".")
         if by["besoins"]["pct"] > cible["besoins"]:
-            add("info", f"Besoins à {by['besoins']['pct']:.0f} % du budget (cible "
+            add("info", f"Charges fixes à {by['besoins']['pct']:.0f} % du budget (cible "
                         f"{cible['besoins']:.0f} %) : gagner en pouvoir d'achat passe par les "
                         "gros contrats (assurances, énergie, abonnements à renégocier).")
 

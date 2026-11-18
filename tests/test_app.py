@@ -145,7 +145,7 @@ def test_postes_et_credits(app, client):
     import html
     mois = html.unescape(client.get("/mois/2026/10").get_data(as_text=True))
     assert "Ce que je dois" in mois and 'data-count="80000"' in mois
-    assert "Crédit renouvelable" in mois and "−200" in mois and "objectif 31/12/2026" in mois
+    assert "Crédit renouvelable" in mois and "−200" in mois and "avant le 31/12/2026" in mois
 
 
 def test_montant_invalide(app, client):
@@ -295,3 +295,25 @@ def test_photo_du_ticket(app, client, monkeypatch):
     import io
     r = client.post("/mois/2026/10/achat/photo", data={"csrf": t, "photo": (io.BytesIO(b"pas une image"), "x.jpg")}, content_type="multipart/form-data")
     assert r.status_code == 400
+
+
+def test_postes_groupes_par_categorie(app, client):
+    seed(app)
+    t = login(client)
+    import html
+    page = html.unescape(client.get("/mois/2026/10").get_data(as_text=True))
+    saisie = page[page.index("Saisie du mois"):]
+    i_charges, i_envies, i_epargne, i_matelas = (saisie.index(f"cat-{k}") for k in ("besoins", "envies", "epargne", "matelas"))
+    assert i_charges < i_envies < i_epargne < i_matelas
+    # Chaque poste est sous sa catégorie, avec sa banque sur la ligne.
+    assert i_charges < saisie.index("Nourriture") < i_envies
+    assert i_envies < saisie.index("Argent de poche") < i_epargne
+    assert i_epargne < saisie.index("Épargne programmée") < i_matelas
+    # Changer la catégorie d'un poste le déplace de bloc.
+    p = q(app, "SELECT p.id, p.account_id FROM postes p WHERE p.name = 'Nourriture'")[0]
+    client.post(f"/postes/{p['id']}", data={"csrf": t, "name": "Nourriture", "account_id": p["account_id"],
+                                            "category": "envies", "active": "on"})
+    saisie = html.unescape(client.get("/mois/2026/10").get_data(as_text=True))
+    saisie = saisie[saisie.index("Saisie du mois"):]
+    assert saisie.index("cat-envies") < saisie.index("Nourriture") < saisie.index("cat-epargne")
+    assert "Charges fixes" in client.get("/postes").get_data(as_text=True)

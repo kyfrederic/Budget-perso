@@ -283,3 +283,10 @@ def test_mois_en_cours_les_depassements_comptent_tout_de_suite(settings):
     m = mois(Nourriture=470, Électricité=110)
     m.closed = False
     assert summarize(m, settings).matelas_rest == E(430)
+
+
+def test_credit_part_remboursee():
+    bal = [(month_index(2026, 3), E(2552)), (month_index(2026, 10), E(1990)), (month_index(2026, 11), E(1892))]
+    st = credit_status("prèt conso", None, bal, month_index(2026, 11))
+    assert st["peak"] == E(2552) and st["repaid_pct"] == 26
+    assert credit_status("x", None, [(OCT, 0)], OCT)["repaid_pct"] is None

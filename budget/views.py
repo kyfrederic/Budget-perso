@@ -120,9 +120,16 @@ def month(year: int, month: int):
         "SELECT * FROM cheques WHERE user_id = ? AND year = ? AND month = ? AND status = 'pending'",
         (g.user_id, year, month),
     ).fetchall()
-    groups: dict[str, list] = {}
-    for l in ctx["m"].lines:
-        groups.setdefault(l.account, []).append(l)
+    # Postes rangés par catégorie (charges fixes, envies, épargne) ; le matelas à part.
+    budget_hors_matelas = sum(l.planned for l in ctx["m"].lines if not l.is_reserve) or 1
+    cat_groups = []
+    for key in rules.CATEGORIES:
+        ls = [l for l in ctx["m"].lines if l.category == key and not l.is_reserve]
+        if ls:
+            total = sum(l.planned for l in ls)
+            cat_groups.append({"key": key, "label": rules.CATEGORIES_LABEL[key], "lines": ls,
+                               "total": total, "pct": total * 100 / budget_hors_matelas})
+    reserve_lines = [l for l in ctx["m"].lines if l.is_reserve]
     done = store.transfers_done(db, row["id"])
     # Ce que je dois : reste dû de chaque crédit au mois affiché (dernier solde connu).
     debts = [
@@ -130,12 +137,14 @@ def month(year: int, month: int):
         for c in store.credits_with_balances(db, g.user_id)
     ]
     debts = [d for d in debts if d["balance"] is not None and (d["balance"] > 0 or d["target_date"])]
-    debts.sort(key=lambda d: -d["balance"])
+    debts.sort(key=lambda d: (d["balance"] <= 0, -d["balance"]))   # soldés en dernier
+    month_delta = sum(d["delta"] for d in debts if d["delta"] and d["balance"] > 0)
     state = _transfer_state(ctx["summary"], row["salary_net"], done)
     progress = [l for l in ctx["m"].lines if l.diff is not None]
     return render_template(
-        "month.html", **ctx, groups=groups, cheques=cheques, done=done, **state,
-        debts=debts, debt_total=sum(max(d["balance"], 0) for d in debts),
+        "month.html", **ctx, cat_groups=cat_groups, reserve_lines=reserve_lines, cheques=cheques,
+        done=done, **state,
+        debts=debts, debt_total=sum(max(d["balance"], 0) for d in debts), debt_delta=month_delta,
         purchases=store.purchases(db, row["id"]),
         stays=[v for v in ctx["summary"].virements if v.kind == "reste"],
         progress=sorted(progress, key=lambda l: -(l.actual / l.planned if l.planned else 9)),
@@ -601,7 +610,7 @@ def postes():
         return redirect(url_for("views.postes"))
     rows = db.execute(
         "SELECT p.*, a.name AS account FROM postes p JOIN accounts a ON a.id = p.account_id "
-        "WHERE p.user_id = ? ORDER BY p.active DESC, a.sort, p.is_reserve, LOWER(p.name)",
+        "WHERE p.user_id = ? ORDER BY p.is_reserve, p.active DESC, LOWER(p.name)",
         (g.user_id,),
     ).fetchall()
     return render_template("postes.html", postes=rows, accounts=_accounts(), categories=rules.CATEGORIES_LABEL)
