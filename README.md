@@ -38,7 +38,7 @@ export BUDGET_DEV=1                      # autorise http://localhost (jamais en 
 
 ## Lecture des tickets
 
-Le ticket est lu **dans le navigateur** (tesseract.js, servi par l'appli depuis `budget/static/ocr/`) : la photo n'est envoyée à aucun service de lecture. Si le navigateur n'y arrive pas et que le programme Tesseract est installé sur le serveur (VPS, essai local), c'est lui qui lit. Sinon, la photo est gardée et le montant se saisit à la main.
+Le ticket est lu **dans le navigateur** (tesseract.js, servi par l'appli depuis `public/static/ocr/`) : la photo n'est envoyée à aucun service de lecture. Si le navigateur n'y arrive pas et que le programme Tesseract est installé sur le serveur (VPS, essai local), c'est lui qui lit. Sinon, la photo est gardée et le montant se saisit à la main.
 
 Les photos sont réduites dans le navigateur, réencodées sans métadonnées, stockées dans la base (table `ticket_photos`) et servies seulement à l'utilisateur connecté. Formats acceptés : JPEG, PNG, WebP, 10 Mo au plus.
 
@@ -108,7 +108,7 @@ Voie alternative, conservée si tu quittes Vercel un jour. Non testée dans un v
 
 ## Design
 
-Ambiance « Nature », toujours claire, décrite dans [design-system/budget/MASTER.md](design-system/budget/MASTER.md). Le mouvement (`static/app.js`) est une amélioration progressive : tout fonctionne sans JavaScript.
+Ambiance « Nature », toujours claire, décrite dans [design-system/budget/MASTER.md](design-system/budget/MASTER.md). Le mouvement (`public/static/app.js`) est une amélioration progressive : tout fonctionne sans JavaScript.
 
 ## Tests
 

@@ -35,7 +35,9 @@ def create_app(test_config: dict | None = None) -> Flask:
         raise RuntimeError("DATABASE_URL manquant : ajoute l'intégration Neon (Postgres) au projet Vercel.")
     if on_vercel and not os.environ.get("BUDGET_SECRET_KEY"):
         raise RuntimeError("BUDGET_SECRET_KEY manquant : ajoute cette variable dans les réglages Vercel.")
-    app = Flask(__name__, instance_path=str(instance))
+    # Fichiers statiques dans public/static : servis par Flask en local, directement par Vercel en ligne.
+    app = Flask(__name__, instance_path=str(instance), static_folder=str(ROOT / "public" / "static"),
+                static_url_path="/static")
     instance.mkdir(parents=True, exist_ok=True)
     app.config.update(
         DATABASE=database_url or str(instance / "budget.sqlite"),

@@ -1,22 +1,33 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "buildCommand": "rm -rf public && mkdir -p public && cp -r budget/static public/static",
-  "outputDirectory": "public",
-  "regions": ["cdg1"],
+  "regions": [
+    "cdg1"
+  ],
   "functions": {
     "api/index.py": {
       "maxDuration": 30,
-      "excludeFiles": "{.claude/**,tests/**,scripts/**,deploy/**,design-system/**,budget/static/**,public/**,instance/**}"
+      "excludeFiles": "{.claude/**,tests/**,scripts/**,deploy/**,design-system/**,public/**,instance/**}"
     }
   },
-  "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }],
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/api/index"
+    }
+  ],
   "headers": [
     {
       "source": "/static/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=604800" },
-        { "key": "X-Content-Type-Options", "value": "nosniff" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=604800"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        }
       ]
     }
   ]

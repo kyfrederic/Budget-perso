@@ -205,10 +205,10 @@ L'onglet « Orthodontie » d'Excel est un exemple de projet d'achat ; une télé
 
 - Stack : Flask + SQLite + pages côté serveur (voir `README.md` pour lancer, configurer et déployer).
 - Règles métier dans `budget/rules.py` (fonctions pures, testées dans `tests/test_rules.py`). Montants stockés en centimes.
-- **Design** : ambiance « Nature » (sauge et argile, toujours claire, animée), décrite dans `design-system/budget/MASTER.md`. Toute évolution d'écran part de ce fichier. CSS simple, police hébergée localement, mouvement dans `static/app.js`, pas de style ni de script en ligne (CSP). Le skill `ui-ux-pro-max` est installé dans `.claude/skills/`.
+- **Design** : ambiance « Nature » (sauge et argile, toujours claire, animée), décrite dans `design-system/budget/MASTER.md`. Toute évolution d'écran part de ce fichier. CSS simple, police hébergée localement, mouvement dans `public/static/app.js`, pas de style ni de script en ligne (CSP). Le skill `ui-ux-pro-max` est installé dans `.claude/skills/`.
 - **Import Excel** : `flask --app budget import-excel DOSSIER --annee 2026` (aperçu), `--ecrire` pour importer dans une base vide. Lecture décrite en tête de `budget/importer.py`, correspondances dans `[import]` de `config/settings.toml`. Vérifié sur les 9 fichiers : totaux identiques à Excel.
-- **Achats et tickets** : `budget/receipt.py` (préparation de l'image, extraction du total), `budget/static/ocr/ticket.js` (lecture dans le navigateur), table `purchases`, écran `purchase.html`.
-- **Hébergement Vercel** : `api/index.py` (point d'entrée), `vercel.json` (fichiers statiques copiés dans `public/`, région Paris), `.vercelignore`. Variables : `DATABASE_URL` (Neon), `BUDGET_SECRET_KEY`, `BUDGET_SETUP_CODE`. Marche à suivre dans `README.md`.
+- **Achats et tickets** : `budget/receipt.py` (préparation de l'image, extraction du total), `public/static/ocr/ticket.js` (lecture dans le navigateur), table `purchases`, écran `purchase.html`.
+- **Hébergement Vercel** : `api/index.py` (point d'entrée), `vercel.json` (région Paris ; fichiers statiques dans `public/static`, servis directement par Vercel), `.vercelignore`. Variables : `DATABASE_URL` (Neon), `BUDGET_SECRET_KEY`, `BUDGET_SETUP_CODE`. Marche à suivre dans `README.md`.
 - **Réglages** (`budget/admin.py`) : second facteur, import Excel, sauvegarde et restauration. Second facteur dans `budget/totp.py`.
 - **Reste à faire en V1** : premier déploiement réel sur Vercel par Fred (jamais testé sur Vercel même : simulé en local avec Postgres). Net imposable et prélèvement à la source de mars à novembre à saisir à la main.
 

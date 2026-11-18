@@ -1,8 +1,8 @@
 # Système de design — Budget, ambiance « Nature »
 
 Référence unique pour le style des écrans. Ambiance choisie par Fred le 2026-11-13 parmi trois
-maquettes (Douceur, Nature, Nuit calme). Les valeurs vivent dans `budget/static/style.css`
-(variables en tête de fichier) ; le mouvement dans `budget/static/app.js`.
+maquettes (Douceur, Nature, Nuit calme). Les valeurs vivent dans `public/static/style.css`
+(variables en tête de fichier) ; le mouvement dans `public/static/app.js`.
 
 ## Intention
 
@@ -40,7 +40,7 @@ empattements, plus lisible pour des chiffres).
 | Trait | `#D9E0CD` | |
 
 - **Toujours clair** : pas de thème sombre, quel que soit le réglage de l'appareil (décision de Fred).
-- **Police** : Figtree 400 à 800, hébergée dans `static/fonts/` (licence OFL). Chiffres tabulaires.
+- **Police** : Figtree 400 à 800, hébergée dans `public/static/fonts/` (licence OFL). Chiffres tabulaires.
 - **Formes** : cartes 22 px, petits blocs 14 px, boutons et étiquettes en pilule. Pas d'ombre.
 - **Espacement** : rythme 4 / 8 px (4, 8, 12, 16, 24, 32).
 - Les couleurs des banques ne font pas partie du système : elles se règlent dans `config/settings.toml`.
