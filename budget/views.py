@@ -660,7 +660,10 @@ def credits():
         st["id"] = c["id"]
         st["rows"] = [(from_index(i), b) for i, b in reversed(c["balances"])][:12]
         items.append(st)
-    return render_template("credits.html", credits=items, default_year=ty, default_month=tm)
+    # En cours d'abord (du plus gros au plus petit), soldés et sans solde ensuite.
+    items.sort(key=lambda c: (not (c["balance"] or 0) > 0, -(c["balance"] or 0)))
+    total = sum(c["balance"] for c in items if c["balance"] and c["balance"] > 0)
+    return render_template("credits.html", credits=items, total=total, default_year=ty, default_month=tm)
 
 
 @bp.route("/credits/<int:credit_id>/solde", methods=["POST"])

@@ -1,6 +1,7 @@
 """Application de budget personnel (V1)."""
 from __future__ import annotations
 
+import hashlib
 import os
 import secrets
 from datetime import timedelta
@@ -77,6 +78,22 @@ def create_app(test_config: dict | None = None) -> Flask:
     app.jinja_env.filters["saisie"] = format_input
     app.jinja_env.filters["datefr"] = date_fr
     app.jinja_env.globals["month_label"] = month_label
+
+    # Adresse d'un fichier statique avec l'empreinte de son contenu (?v=…) : le navigateur
+    # peut le garder en cache longtemps, et recharge forcément la nouvelle version quand il change.
+    fingerprints: dict[str, str] = {}
+
+    def asset(filename: str) -> str:
+        from flask import url_for
+        if filename not in fingerprints:
+            path = Path(app.static_folder) / filename
+            try:
+                fingerprints[filename] = hashlib.sha256(path.read_bytes()).hexdigest()[:10]
+            except OSError:
+                fingerprints[filename] = "0"
+        return url_for("static", filename=filename, v=fingerprints[filename])
+
+    app.jinja_env.globals["asset"] = asset
 
     from . import admin, auth, cli, views
     app.jinja_env.globals["csrf_token"] = auth.csrf_token

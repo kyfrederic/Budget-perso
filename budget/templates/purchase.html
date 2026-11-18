@@ -3,7 +3,7 @@
 {% block content %}
 <h1 class="page">Ajouter un achat <small class="muted">· {{ month_label(m.year, m.month) }}</small></h1>
 
-<form method="post" action="{{ url_for('views.purchase_photo', year=m.year, month=m.month) }}" enctype="multipart/form-data" class="card photo-form" data-ticket data-ocr="{{ url_for('static', filename='ocr/') }}">
+<form method="post" action="{{ url_for('views.purchase_photo', year=m.year, month=m.month) }}" enctype="multipart/form-data" class="card photo-form" data-ticket data-ocr="{{ asset('ocr/') }}">
   <input type="hidden" name="csrf" value="{{ csrf_token() }}">
   {% if photo %}
   <a class="ticket" href="{{ url_for('views.ticket_photo', token=photo) }}"><img src="{{ url_for('views.ticket_photo', token=photo) }}" alt="Photo du ticket"></a>
@@ -47,6 +47,6 @@
 </form>
 {% endblock %}
 {% block scripts %}
-<script src="{{ url_for('static', filename='ocr/tesseract.min.js') }}" defer></script>
-<script src="{{ url_for('static', filename='ocr/ticket.js') }}" defer></script>
+<script src="{{ asset('ocr/tesseract.min.js') }}" defer></script>
+<script src="{{ asset('ocr/ticket.js') }}" defer></script>
 {% endblock %}

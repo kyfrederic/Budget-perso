@@ -139,13 +139,18 @@ def test_postes_et_credits(app, client):
     cid = q(app, "SELECT id FROM credits WHERE name = 'Crédit renouvelable'")[0]["id"]
     for month, bal in ((9, "1000"), (10, "800")):
         client.post(f"/credits/{cid}/solde", data={"csrf": t, "year": 2026, "month": month, "balance": bal})
-    page = client.get("/credits").get_data(as_text=True)
-    assert "800,00" in page and "−200,00" in page
-    # L'écran du mois s'ouvre sur ce que je dois : total et détail du crédit.
     import html
+    # Page Crédits : le détail de chaque crédit (reste dû, évolution, part remboursée, objectif).
+    page = html.unescape(client.get("/credits").get_data(as_text=True))
+    assert "800\u00a0€" in page and "−200\u00a0€" in page
+    assert "20 % remboursé" in page and "avant le 31/12/2026" in page
+    # L'écran du mois ne montre que le total et renvoie vers le détail.
     mois = html.unescape(client.get("/mois/2026/10").get_data(as_text=True))
-    assert "Ce que je dois" in mois and 'data-count="80000"' in mois
-    assert "Crédit renouvelable" in mois and "−200" in mois and "avant le 31/12/2026" in mois
+    assert "Ce que je dois" in mois and 'data-count="80000"' in mois and "Voir le détail" in mois
+    bandeau = mois[mois.index("Ce que je dois"):mois.index("Épargne du mois")]
+    assert "Crédit renouvelable" not in bandeau
+    # Les fichiers statiques portent l'empreinte de leur contenu.
+    assert re.search(r'/static/style\.css\?v=[0-9a-f]{10}', mois)
 
 
 def test_montant_invalide(app, client):

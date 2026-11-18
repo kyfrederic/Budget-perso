@@ -199,22 +199,27 @@ a.arrow.plus:hover { background: var(--primary-hover); border-color: var(--prima
 .facts dt { font-size: .75rem; color: var(--muted-fg); line-height: 1.3; }
 .facts dd { margin: 2px 0 0; font-weight: 700; font-size: 1.0625rem; white-space: nowrap; }
 
-/* Ce que je dois */
+/* Ce que je dois (écran du mois : total seulement) */
 .hero.debts { display: block; }
 .debts-head { position: relative; z-index: 1; }
-.debt-list { list-style: none; margin: var(--s4) 0 0; padding: 0; position: relative; z-index: 1; display: grid; gap: var(--s2); }
-.debt { background: color-mix(in srgb, var(--card) 72%, transparent); border-radius: var(--radius-s); padding: var(--s3) var(--s4); display: grid; gap: var(--s2); }
-.debt-top { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); }
-.debt-name { font-weight: 500; min-width: 0; }
-.debt-amount { font-weight: 600; font-size: 1.0625rem; white-space: nowrap; }
+.debts-late { color: var(--clay); font-weight: 600; font-size: .875rem; margin-top: var(--s2) !important; }
+.debts-link { margin: var(--s3) 0 0 !important; font-size: .875rem; }
+
+/* Page Crédits */
+.credit { display: grid; gap: var(--s2); }
+.credit .debt-top { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); }
+.credit-name { margin: 0; font-size: 1.0625rem; color: var(--fg); }
+.credit-amount { font-weight: 700; font-size: 1.375rem; white-space: nowrap; letter-spacing: -.01em; }
+.credit.done { opacity: .7; }
 .debt-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s1) var(--s3); font-size: .8125rem; color: var(--muted-fg); }
-.debt.done { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); padding-block: var(--s2); background: transparent; border: 1px dashed color-mix(in srgb, var(--fg) 18%, transparent); color: var(--muted-fg); }
-.pill { display: inline-block; padding: 1px 10px; border-radius: var(--pill); font-size: .75rem; font-weight: 500; background: var(--card); color: var(--muted-fg); white-space: nowrap; }
+.pill { display: inline-block; padding: 1px 10px; border-radius: var(--pill); font-size: .75rem; font-weight: 500; background: var(--bg); color: var(--muted-fg); white-space: nowrap; }
 .pill.ok { color: var(--positive); background: var(--leaf-bg); }
 .pill.late { color: var(--clay); background: var(--clay-bg); }
-progress.bar.thin { height: 5px; background: color-mix(in srgb, var(--fg) 10%, transparent); }
-progress.bar.thin::-webkit-progress-bar { background: color-mix(in srgb, var(--fg) 10%, transparent); }
-.debts-link { margin: var(--s3) 0 0 !important; font-size: .875rem; position: relative; z-index: 1; }
+progress.bar.thin { height: 6px; }
+.credit-more { margin-top: var(--s1); }
+.credit-more summary { cursor: pointer; font-size: .875rem; color: var(--link); min-height: 44px; display: flex; align-items: center; }
+.credit-more[open] summary { margin-bottom: var(--s2); }
+.credit-more form { margin-bottom: var(--s3); }
 
 /* Épargne du mois et matelas, en petit */
 .month-strip { display: grid; grid-template-columns: 1fr; gap: var(--s2); margin: 0 0 var(--s3); }
@@ -359,10 +364,8 @@ tr.cat-row td { background: var(--bg); }
 .line.total { font-weight: 800; grid-template-columns: 1fr auto; grid-template-areas: none; border-bottom: 0; }
 .line.total span:nth-child(n+3) { display: none; }
 .diff.over { color: var(--clay); font-weight: 600; } .diff.under { color: var(--positive); font-weight: 500; }
-.sticky {
-  position: sticky; bottom: calc(var(--tabbar) + env(safe-area-inset-bottom)); padding: var(--s3) 0;
-  background: linear-gradient(transparent, var(--card) 30%);
-}
+/* Sur téléphone, le bouton Enregistrer reste à sa place, sous les notes (il ne flotte plus). */
+.sticky { padding: var(--s4) 0 var(--s2); }
 .sticky button { width: 100%; }
 
 /* ---------- Tableaux simples ---------- */
@@ -454,7 +457,7 @@ td.bar { width: 28%; min-width: 60px; }
   .line.total { grid-template-columns: minmax(0, 2.4fr) 1fr 1fr .9fr 1fr 44px; padding-top: var(--s3); }
   .line.total span:nth-child(2) { text-align: right; padding-right: 14px; }
   .line.total span:nth-child(n+3) { display: block; }
-  .sticky { bottom: 0; }
+  .sticky { position: sticky; bottom: 0; padding: var(--s3) 0; background: linear-gradient(transparent, var(--card) 30%); }
   .sticky button { width: auto; min-width: 220px; }
   .cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
   .agenda { display: none; }

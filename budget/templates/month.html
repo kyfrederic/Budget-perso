@@ -7,40 +7,16 @@
 {# ---- En premier : ce que je dois ---- #}
 <section class="hero debts">
   {% set open_debts = debts|selectattr('balance', 'gt', 0)|list %}
+  {% set late = open_debts|selectattr('on_track', 'false')|list %}
   <div class="debts-head">
     <p class="hero-label">Ce que je dois</p>
     <p class="hero-big">{% if open_debts %}<span data-count="{{ debt_total }}">{{ debt_total|eur(decimales=False) }}</span>{% else %}0 €{% endif %}</p>
-    <p class="hero-sub">{% if open_debts %}reste dû sur {{ open_debts|length }} crédit{{ 's' if open_debts|length > 1 }}{% if debt_delta < 0 %} · {{ debt_delta|eur(signe=True, decimales=False) }} ce mois{% endif %}
+    <p class="hero-sub">{% if open_debts %}{{ open_debts|length }} crédit{{ 's' if open_debts|length > 1 }} en cours{% if debt_delta < 0 %} · {{ debt_delta|eur(signe=True, decimales=False) }} ce mois{% endif %}
       {% elif debts %}Tous tes crédits suivis sont soldés.
-      {% else %}Aucun crédit en cours. <a href="{{ url_for('views.credits') }}">Suivre un crédit</a>{% endif %}</p>
+      {% else %}Aucun crédit suivi.{% endif %}</p>
+    {% if late %}<p class="debts-late">{{ late|length }} objectif{{ 's' if late|length > 1 }} de remboursement à revoir</p>{% endif %}
+    <p class="debts-link"><a href="{{ url_for('views.credits') }}">{{ 'Voir le détail' if debts else 'Suivre un crédit' }}</a></p>
   </div>
-  {% if debts %}
-  <ul class="debt-list">
-    {% for d in debts %}
-    {% if d.balance > 0 %}
-    <li class="debt">
-      <div class="debt-top">
-        <span class="debt-name">{{ d.name[:1]|upper }}{{ d.name[1:] }}</span>
-        <span class="debt-amount">{{ d.balance|eur(decimales=False) }}</span>
-      </div>
-      {% if d.repaid_pct is not none and d.repaid_pct > 0 %}
-      <progress class="bar thin" max="100" value="{{ d.repaid_pct }}" data-bar aria-label="Part remboursée">{{ d.repaid_pct }} %</progress>
-      {% endif %}
-      <div class="debt-meta">
-        <span>{% if d.delta is not none and d.delta != 0 %}{{ d.delta|eur(signe=True, decimales=False) }} ce mois{% else %}inchangé ce mois{% endif %}{% if d.repaid_pct %} · {{ d.repaid_pct }} % remboursé{% endif %}</span>
-        {% if d.target_date %}<span class="pill {{ 'ok' if d.on_track is true else ('late' if d.on_track is false else '') }}">avant le {{ d.target_date|datefr }}{% if d.on_track is true %} · tenable{% elif d.on_track is false %} · rythme à revoir{% endif %}</span>{% endif %}
-      </div>
-    </li>
-    {% else %}
-    <li class="debt done">
-      <span class="debt-name">{{ d.name[:1]|upper }}{{ d.name[1:] }}</span>
-      <span class="pill ok">Soldé{% if d.target_date %} avant l'objectif{% endif %}</span>
-    </li>
-    {% endif %}
-    {% endfor %}
-  </ul>
-  {% endif %}
-  <p class="debts-link"><a href="{{ url_for('views.credits') }}">Mettre à jour les soldes</a></p>
 </section>
 
 {# ---- Épargne du mois et matelas, en plus petit ---- #}
