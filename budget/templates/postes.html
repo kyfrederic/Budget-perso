@@ -27,7 +27,7 @@
 {% if items %}
 <h2 class="cat-title cat-{{ key }}"><span><span class="cat-mark"></span> {{ label }}</span><span class="count">{{ items|length }} poste{{ 's' if items|length > 1 }}</span></h2>
 {% for p in items %}
-<form method="post" action="{{ url_for('views.poste_update', poste_id=p.id) }}" class="card poste-form {{ account_class(p.account) }} {% if not p.active %}inactive{% endif %}">
+<form method="post" action="{{ url_for('views.poste_update', poste_id=p.id) }}" id="poste-{{ p.id }}" class="card poste-form {{ account_class(p.account) }} {% if not p.active %}inactive{% endif %}">
   <input type="hidden" name="csrf" value="{{ csrf_token() }}">
   <div class="fields">
     {{ fields(p) }}

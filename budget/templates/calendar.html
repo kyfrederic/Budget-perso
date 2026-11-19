@@ -13,7 +13,7 @@
     {% for week in weeks %}{% for day in week %}
     <div class="day {% if not day %}empty{% endif %} {% if day == today_day %}today{% endif %}">
       {% if day %}<span class="num">{{ day }}</span>
-      {% for l in by_day.get(day, []) %}<span class="ev {{ account_class(l.account) }}" title="{{ l.account }}">{{ l.name }} <b>{{ l.planned|eur(decimales=False) }}</b></span>{% endfor %}
+      {% for l in by_day.get(day, []) %}<a class="ev {{ account_class(l.account) }}" href="{{ url_for('views.postes') }}#poste-{{ l.poste_id }}" title="{{ l.account }} · changer le jour">{{ l.name }} <b>{{ l.planned|eur(decimales=False) }}</b></a>{% endfor %}
       {% endif %}
     </div>
     {% endfor %}{% endfor %}
@@ -21,17 +21,27 @@
   <ul class="agenda">
     {% for day in days %}
     <li><span class="daynum">{{ day }}</span>
-      <div>{% for l in by_day[day] %}<span class="ev {{ account_class(l.account) }}">{{ l.name }} <b>{{ l.planned|eur }}</b></span>{% endfor %}</div></li>
+      <div>{% for l in by_day[day] %}<a class="ev {{ account_class(l.account) }}" href="{{ url_for('views.postes') }}#poste-{{ l.poste_id }}">{{ l.name }} <b>{{ l.planned|eur }}</b></a>{% endfor %}</div></li>
     {% else %}<li class="muted">Aucun prélèvement daté.</li>{% endfor %}
   </ul>
 </section>
 
 {% if undated %}
-<section class="card">
-  <h2>Sans jour de prélèvement</h2>
-  <p class="evs">{% for l in undated %}<span class="ev {{ account_class(l.account) }}">{{ l.name }} <b>{{ l.planned|eur(decimales=False) }}</b></span>{% endfor %}</p>
-  <p class="muted small">Le jour se règle dans l'écran <a href="{{ url_for('views.postes') }}">Postes</a>.</p>
-</section>
+<form method="post" action="{{ url_for('views.calendar_days', year=m.year, month=m.month) }}" class="card">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <h2>Sans jour de prélèvement <span class="count">{{ undated|length }} poste{{ 's' if undated|length > 1 }}</span></h2>
+  <p class="muted small">Indique le jour du mois où chaque prélèvement passe : il apparaîtra dans le calendrier, et pour tous les mois. Laisse vide ce qui n'est pas un prélèvement (courses, carburant…).</p>
+  <ul class="day-list">
+    {% for l in undated %}
+    <li>
+      <span class="dot {{ account_class(l.account) }}"></span>
+      <label for="day_{{ l.poste_id }}">{{ l.name }} <small class="muted">{{ l.account }} · {{ l.planned|eur(decimales=False) }}</small></label>
+      <input type="number" name="day_{{ l.poste_id }}" id="day_{{ l.poste_id }}" min="1" max="31" inputmode="numeric" placeholder="jour" aria-label="Jour de prélèvement de {{ l.name }}">
+    </li>
+    {% endfor %}
+  </ul>
+  <button class="primary">Enregistrer les jours</button>
+</form>
 {% endif %}
 
 <section class="card">

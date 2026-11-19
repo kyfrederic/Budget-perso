@@ -393,6 +393,15 @@ td.bar { width: 28%; min-width: 60px; }
   display: inline-block; font-size: .875rem; padding: 3px 12px; border-radius: var(--pill);
   background: color-mix(in srgb, var(--cpt) 16%, var(--card)); border: 1px solid color-mix(in srgb, var(--cpt) 45%, var(--card));
 }
+.day-list { list-style: none; margin: 0 0 var(--s4); padding: 0; }
+.day-list li { display: flex; align-items: center; gap: var(--s3); padding: var(--s2) 0; }
+.day-list li + li { border-top: 1px solid var(--line); }
+.day-list label { flex: 1; min-width: 0; margin: 0; color: var(--fg); font-weight: 500; font-size: .9375rem; }
+.day-list label small { display: block; font-weight: 400; font-size: .8125rem; }
+.day-list input { width: 84px; flex: none; margin: 0; text-align: center; }
+a.ev { color: var(--fg); text-decoration: none; }
+a.ev:hover { filter: brightness(.97); }
+.poste-form:target { box-shadow: 0 0 0 3px var(--leaf-bg); }
 .cheques { list-style: none; margin: 0 0 var(--s3); padding: 0; }
 .cheques li { display: flex; flex-wrap: wrap; gap: var(--s2); justify-content: space-between; align-items: center; padding: var(--s3) 0; border-bottom: 1px solid var(--line); }
 .cheques li.debited > div:first-child { color: var(--muted-fg); }

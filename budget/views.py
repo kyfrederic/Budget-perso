@@ -512,6 +512,33 @@ def calendar_view(year: int, month: int):
     )
 
 
+@bp.route("/mois/<int:year>/<int:month>/calendrier/jours", methods=["POST"])
+def calendar_days(year: int, month: int):
+    """Fixe d'un coup le jour de prélèvement de plusieurs postes (vaut pour tous les mois)."""
+    _month_or_404(year, month)
+    db = get_db()
+    own = {r["id"] for r in db.execute("SELECT id FROM postes WHERE user_id = ?", (g.user_id,))}
+    updates = []
+    for key, value in request.form.items():
+        if not key.startswith("day_") or not value.strip():
+            continue
+        try:
+            poste_id, day = int(key[4:]), int(value)
+        except ValueError:
+            abort(400, "Le jour de prélèvement doit être un nombre entre 1 et 31.")
+        if poste_id not in own:
+            abort(400, "Poste inconnu.")
+        if not 1 <= day <= 31:
+            abort(400, "Le jour de prélèvement doit être entre 1 et 31.")
+        updates.append((day, poste_id))
+    for day, poste_id in updates:
+        db.execute("UPDATE postes SET debit_day = ? WHERE id = ?", (day, poste_id))
+    db.commit()
+    if updates:
+        flash(f"{len(updates)} jour{'s' if len(updates) > 1 else ''} de prélèvement enregistré{'s' if len(updates) > 1 else ''}.")
+    return redirect(url_for("views.calendar_view", year=year, month=month))
+
+
 # ---------------------------------------------------------------- chèques
 
 

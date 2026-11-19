@@ -322,3 +322,28 @@ def test_postes_groupes_par_categorie(app, client):
     saisie = saisie[saisie.index("Saisie du mois"):]
     assert saisie.index("cat-envies") < saisie.index("Nourriture") < saisie.index("cat-epargne")
     assert "Charges fixes" in client.get("/postes").get_data(as_text=True)
+
+
+
+def test_jours_de_prelevement_depuis_le_calendrier(app, client):
+    seed(app)
+    t = login(client)
+    ids = {r["name"]: r["id"] for r in q(app, "SELECT id, name FROM postes")}
+    q_set = lambda: {r["name"]: r["debit_day"] for r in q(app, "SELECT name, debit_day FROM postes")}
+    # Le modèle d'essai a des postes sans jour : ils sont proposés à la saisie.
+    page = client.get("/mois/2026/10/calendrier").get_data(as_text=True)
+    assert f'name="day_{ids["Nourriture"]}"' in page and "Enregistrer les jours" in page
+    r = client.post("/mois/2026/10/calendrier/jours", data={
+        "csrf": t, f"day_{ids['Nourriture']}": "3", f"day_{ids['Carburant']}": ""})
+    assert r.status_code == 302
+    assert q_set()["Nourriture"] == 3 and q_set()["Carburant"] is None
+    page = client.get("/mois/2026/10/calendrier").get_data(as_text=True)
+    assert f'#poste-{ids["Nourriture"]}' in page                      # placé dans le calendrier
+    assert f'name="day_{ids["Nourriture"]}"' not in page               # plus dans la liste à compléter
+    # Le jour vaut pour les autres mois aussi.
+    client.post("/mois/nouveau", data={"csrf": t, "year": 2026, "month": 11, "salary_net": "3000"})
+    assert f'#poste-{ids["Nourriture"]}' in client.get("/mois/2026/11/calendrier").get_data(as_text=True)
+    # Refus : jour hors 1–31, poste inconnu.
+    assert client.post("/mois/2026/10/calendrier/jours", data={"csrf": t, f"day_{ids['Carburant']}": "32"}).status_code == 400
+    assert client.post("/mois/2026/10/calendrier/jours", data={"csrf": t, "day_99999": "5"}).status_code == 400
+    assert q_set()["Carburant"] is None
