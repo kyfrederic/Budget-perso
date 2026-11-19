@@ -11,8 +11,12 @@
   <div class="cal" role="grid" aria-label="Prélèvements du mois">
     {% for d in ['lun', 'mar', 'mer', 'jeu', 'ven', 'sam', 'dim'] %}<div class="dow">{{ d }}</div>{% endfor %}
     {% for week in weeks %}{% for day in week %}
-    <div class="day {% if not day %}empty{% endif %} {% if day == today_day %}today{% endif %}">
-      {% if day %}<span class="num">{{ day }}</span>
+    {% set evs = by_day.get(day, []) if day else [] %}
+    <div class="day {% if not day %}empty{% endif %} {% if day == today_day %}today{% endif %} {% if evs %}has{% endif %}">
+      {% if day %}
+      {# Téléphone : le jour et des points de couleur ; toucher le jour mène à son détail dans la liste. #}
+      {% if evs %}<a class="day-link" href="#jour-{{ day }}" aria-label="{{ day }} : {{ evs|length }} prélèvement{{ 's' if evs|length > 1 }}"><span class="num">{{ day }}</span><span class="dots">{% for l in evs[:4] %}<i class="dot {{ account_class(l.account) }}"></i>{% endfor %}</span></a>
+      {% else %}<span class="num">{{ day }}</span>{% endif %}
       {% for l in by_day.get(day, []) %}<a class="ev {{ account_class(l.account) }}" href="{{ url_for('views.postes') }}#poste-{{ l.poste_id }}" title="{{ l.account }} · changer le jour">{{ l.name }} <b>{{ l.planned|eur(decimales=False) }}</b></a>{% endfor %}
       {% endif %}
     </div>
@@ -20,7 +24,7 @@
   </div>
   <ul class="agenda">
     {% for day in days %}
-    <li><span class="daynum">{{ day }}</span>
+    <li id="jour-{{ day }}"><span class="daynum">{{ day }}</span>
       <div>{% for l in by_day[day] %}<a class="ev {{ account_class(l.account) }}" href="{{ url_for('views.postes') }}#poste-{{ l.poste_id }}">{{ l.name }} <b>{{ l.planned|eur }}</b></a>{% endfor %}</div></li>
     {% else %}<li class="muted">Aucun prélèvement daté.</li>{% endfor %}
   </ul>
