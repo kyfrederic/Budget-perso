@@ -347,3 +347,35 @@ def test_jours_de_prelevement_depuis_le_calendrier(app, client):
     assert client.post("/mois/2026/10/calendrier/jours", data={"csrf": t, f"day_{ids['Carburant']}": "32"}).status_code == 400
     assert client.post("/mois/2026/10/calendrier/jours", data={"csrf": t, "day_99999": "5"}).status_code == 400
     assert q_set()["Carburant"] is None
+
+
+def test_poste_reactive_dans_le_calendrier(app, client):
+    seed(app)
+    t = login(client)
+    p = q(app, "SELECT id, account_id FROM postes WHERE name = 'Argent de poche'")[0]
+    form = lambda **kw: {"csrf": t, "name": "Argent de poche", "account_id": p["account_id"], "category": "envies", **kw}
+    # Désactivé, puis un nouveau mois : le poste n'y est pas.
+    client.post(f"/postes/{p['id']}", data=form())
+    client.post("/mois/nouveau", data={"csrf": t, "year": 2026, "month": 11, "salary_net": "3000"})
+    in_nov = lambda: q(app, "SELECT l.planned FROM lines l JOIN months m ON m.id = l.month_id "
+                            "WHERE m.month = 11 AND l.poste_id = ?", p["id"])
+    assert in_nov() == []
+    # Réactivé avec un jour : il rejoint le budget de novembre avec son dernier montant, et le calendrier.
+    r = client.post(f"/postes/{p['id']}", data=form(active="on", debit_day="12"), follow_redirects=True)
+    assert "réactivé et ajouté au budget de novembre 2026" in r.get_data(as_text=True)
+    assert in_nov()[0]["planned"] == 20000
+    cal = client.get("/mois/2026/11/calendrier").get_data(as_text=True)
+    assert f"#poste-{p['id']}" in cal and 'id="jour-12"' in cal
+
+
+def test_calendrier_totaux_par_jour(app, client):
+    seed(app)
+    t = login(client)
+    ids = {r["name"]: r["id"] for r in q(app, "SELECT id, name FROM postes")}
+    # Deux postes le même jour (Électricité 150 € le 15 dans le modèle + Nourriture 400 €).
+    client.post("/mois/2026/10/calendrier/jours", data={"csrf": t, f"day_{ids['Nourriture']}": "15"})
+    import html
+    cal = html.unescape(client.get("/mois/2026/10/calendrier").get_data(as_text=True))
+    jour15 = cal[cal.index('id="jour-15"'):]
+    jour15 = jour15[:jour15.index("</li>\n      </ul>") if "</li>\n      </ul>" in jour15 else 2000]
+    assert "550 €" in cal and "Électricité" in jour15 and "Nourriture" in jour15

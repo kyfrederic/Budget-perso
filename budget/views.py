@@ -491,12 +491,13 @@ def calendar_view(year: int, month: int):
     by_day: dict[int, list] = {}
     undated = []
     for l in ctx["m"].lines:
-        if l.is_reserve or not l.planned:
+        if l.is_reserve:
             continue
-        if l.debit_day:
+        if l.debit_day:                       # daté : toujours affiché, même à 0 €
             by_day.setdefault(min(l.debit_day, last_day), []).append(l)
-        else:
+        elif l.planned:
             undated.append(l)
+    day_totals = {d: sum(l.planned for l in ls) for d, ls in by_day.items()}
     weeks = calendar.Calendar(firstweekday=0).monthdayscalendar(year, month)
     cheques = db.execute(
         "SELECT c.*, a.name AS account FROM cheques c LEFT JOIN accounts a ON a.id = c.account_id "
@@ -508,7 +509,9 @@ def calendar_view(year: int, month: int):
     return render_template(
         "calendar.html", **ctx, weeks=weeks, by_day=by_day, undated=undated, cheques=cheques,
         cheques_pending=pending, today_day=t.day if (t.year, t.month) == (year, month) else None,
-        days=sorted(by_day),
+        days=sorted(by_day), day_totals=day_totals,
+        weekday={d: calendar.weekday(year, month, d) for d in by_day}, month_total=sum(day_totals.values()),
+        n_debits=sum(len(ls) for ls in by_day.values()),
     )
 
 
@@ -657,8 +660,26 @@ def poste_update(poste_id: int):
         (f["name"], f["account_id"], f["category"], f["debit_day"], f["seasonal"], f["contractual"],
          active, poste_id),
     )
+    message = f"Poste « {f['name']} » mis à jour."
+    latest = store.latest_month(db, g.user_id)
+    if active and not p["active"] and latest:
+        # Réactivé : il rejoint tout de suite le budget du mois le plus récent, avec son
+        # dernier montant prévu connu (les mois suivants le reprendront ensuite d'eux-mêmes).
+        last = db.execute(
+            "SELECT l.planned FROM lines l JOIN months m ON m.id = l.month_id "
+            "WHERE l.poste_id = ? AND l.planned > 0 ORDER BY m.year DESC, m.month DESC LIMIT 1",
+            (poste_id,),
+        ).fetchone()
+        planned = last["planned"] if last else p["default_planned"]
+        cur = db.execute(
+            "INSERT INTO lines (month_id, poste_id, planned) VALUES (?, ?, ?) ON CONFLICT DO NOTHING",
+            (latest["id"], poste_id, planned),
+        )
+        if cur.rowcount:
+            message = (f"Poste « {f['name']} » réactivé et ajouté au budget de "
+                       f"{month_label(latest['year'], latest['month'])}.")
     db.commit()
-    flash(f"Poste « {f['name']} » mis à jour.")
+    flash(message)
     return redirect(url_for("views.postes"))
 
 

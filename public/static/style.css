@@ -382,28 +382,39 @@ td.bar { width: 28%; min-width: 60px; }
 /* ---------- Calendrier ---------- */
 .legend { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); margin-bottom: var(--s3); font-size: .875rem; }
 .legend > span { display: inline-flex; align-items: center; gap: var(--s2); }
-/* Téléphone : grille compacte (jour + points de couleur), détail dans la liste en dessous. */
-.cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin-bottom: var(--s4); }
-.dow { font-size: .6875rem; font-weight: 600; color: var(--muted-fg); text-align: center; padding-bottom: 2px; text-transform: lowercase; }
-.day { min-height: 46px; border-radius: 10px; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 5px; }
+/* Calendrier : grille épurée (jour, total, points) + détail par jour. */
+.cal-summary { margin: 0 0 var(--s3); color: var(--muted-fg); font-size: .9375rem; }
+.cal-summary b { color: var(--fg); }
+.cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin-bottom: var(--s4); align-content: start; }
+.dow { font-size: .6875rem; font-weight: 600; color: var(--muted-fg); text-align: center; padding-bottom: 2px; }
+.day { min-height: 48px; border-radius: 10px; background: var(--bg); display: flex; }
 .day.empty { background: none; }
-.day.today { box-shadow: inset 0 0 0 2px var(--primary); background: var(--leaf-bg); }
+.day > .num { margin: 5px auto 0; }
 .day .num { font-size: .875rem; font-weight: 600; color: var(--muted-fg); line-height: 1.2; }
+.day.has { background: var(--leaf-bg); }
 .day.has .num { color: var(--fg); }
+.day.today { box-shadow: inset 0 0 0 2px var(--primary); }
 .day.today .num { color: var(--primary); font-weight: 800; }
-.day > .ev { display: none; }
-.day-link { display: flex; flex-direction: column; align-items: center; width: 100%; height: 100%; text-decoration: none; border-radius: 10px; }
-.day-link:active { background: var(--leaf-bg); }
-.dots { display: flex; gap: 3px; margin-top: 4px; }
+.day-link { flex: 1; display: flex; flex-direction: column; align-items: center; padding-top: 5px; text-decoration: none; color: inherit; border-radius: 10px; transition: background-color var(--fast) var(--ease); }
+.day-link:hover, .day-link:active { background: color-mix(in srgb, var(--primary) 12%, transparent); }
+.day-total { display: none; font-size: .75rem; font-weight: 700; color: var(--fg); }
+.dots { display: flex; gap: 3px; margin-top: 4px; flex-wrap: wrap; justify-content: center; }
 .dots .dot { width: 6px; height: 6px; }
-.agenda { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
-.agenda li { scroll-margin-top: var(--s5); transition: background-color var(--slow) var(--ease); border-radius: 10px; }
-.agenda li:target { background: var(--leaf-bg); padding-inline: var(--s2); }
-.agenda li { display: flex; gap: var(--s4); padding: var(--s3) 0; border-bottom: 1px solid var(--line); }
-.agenda li:last-child { border-bottom: 0; }
-.daynum { width: 32px; font-weight: 800; font-size: 1.25rem; text-align: right; flex: none; line-height: 1.3; }
-.agenda div, .evs { display: flex; flex-wrap: wrap; gap: var(--s2); margin: 0 0 var(--s3); }
-.agenda div { margin: 0; }
+.agenda { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s2); }
+.agenda-day { border-radius: var(--radius-s); background: var(--bg); padding: var(--s2) var(--s3); scroll-margin-top: var(--s5); transition: box-shadow var(--slow) var(--ease), background-color var(--slow) var(--ease); }
+.agenda-day:target { background: var(--leaf-bg); box-shadow: inset 0 0 0 2px var(--primary); }
+.agenda-head { display: flex; align-items: baseline; gap: var(--s2); padding-bottom: var(--s1); }
+.agenda-head .daynum { font-size: 1.125rem; font-weight: 800; width: auto; text-align: left; line-height: 1.2; }
+.agenda-head .dayname { color: var(--muted-fg); font-size: .8125rem; }
+.agenda-head b { margin-left: auto; font-size: .9375rem; }
+.agenda-day ul { list-style: none; margin: 0; padding: 0; }
+.agenda-day ul a { display: flex; align-items: center; gap: var(--s2); padding: 6px 0; text-decoration: none; color: var(--fg); border-top: 1px solid var(--line); }
+.agenda-day ul li:first-child a { border-top: 0; }
+.agenda-day ul a:hover .ev-name { text-decoration: underline; text-underline-offset: 3px; }
+.ev-name { flex: 1; min-width: 0; font-size: .9375rem; }
+.ev-name small { display: block; color: var(--muted-fg); font-size: .75rem; }
+.ev-amount { font-weight: 600; white-space: nowrap; }
+.evs { display: flex; flex-wrap: wrap; gap: var(--s2); margin: 0 0 var(--s3); }
 .ev {
   display: inline-block; font-size: .875rem; padding: 3px 12px; border-radius: var(--pill);
   background: color-mix(in srgb, var(--cpt) 16%, var(--card)); border: 1px solid color-mix(in srgb, var(--cpt) 45%, var(--card));
@@ -483,18 +494,14 @@ a.ev:hover { filter: brightness(.97); }
   .line.total span:nth-child(n+3) { display: block; }
   .sticky { position: sticky; bottom: 0; padding: var(--s3) 0; background: linear-gradient(transparent, var(--card) 30%); }
   .sticky button { width: auto; min-width: 220px; }
+  .cal-layout { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: var(--s5); align-items: start; }
   .cal { gap: 6px; margin-bottom: 0; }
-  .agenda { display: none; }
-  .dow { font-size: .8125rem; font-weight: 500; text-align: left; padding: 0 var(--s2) var(--s1); text-transform: none; }
-  .day { min-height: 96px; background: var(--bg); border-radius: var(--radius-s); padding: var(--s2); display: flex; flex-direction: column; align-items: stretch; gap: var(--s1); }
-  .day > .ev { display: block; }
-  .day-link { display: block; height: auto; pointer-events: none; }
-  .dots { display: none; }
-  .day.empty { background: none; }
-  .day.today { box-shadow: inset 0 0 0 2px var(--primary); background: var(--leaf-bg); }
-  .day .num { font-size: .8125rem; font-weight: 600; color: var(--muted-fg); text-align: left !important; }
-  .day.today .num { color: var(--primary); font-weight: 800; }
-  .day .ev { font-size: .75rem; padding: 2px 8px; border-radius: 10px; overflow-wrap: anywhere; }
+  .dow { font-size: .75rem; }
+  .day { min-height: 76px; }
+  .day-link { padding-top: 8px; gap: 2px; }
+  .day-total { display: block; }
+  .dots .dot { width: 7px; height: 7px; }
+  .agenda { max-height: 560px; overflow-y: auto; padding-right: var(--s1); }
   .poste-form .fields { grid-template-columns: minmax(0, 2fr) 1.2fr 1fr 76px auto auto auto auto; }
   .poste-form .grow { grid-column: auto; }
   .poste-form .fields > * { order: 0 !important; }

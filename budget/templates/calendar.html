@@ -8,26 +8,35 @@
 </section>
 
 <section class="card cal-wrap">
-  <div class="cal" role="grid" aria-label="Prélèvements du mois">
-    {% for d in ['lun', 'mar', 'mer', 'jeu', 'ven', 'sam', 'dim'] %}<div class="dow">{{ d }}</div>{% endfor %}
-    {% for week in weeks %}{% for day in week %}
-    {% set evs = by_day.get(day, []) if day else [] %}
-    <div class="day {% if not day %}empty{% endif %} {% if day == today_day %}today{% endif %} {% if evs %}has{% endif %}">
-      {% if day %}
-      {# Téléphone : le jour et des points de couleur ; toucher le jour mène à son détail dans la liste. #}
-      {% if evs %}<a class="day-link" href="#jour-{{ day }}" aria-label="{{ day }} : {{ evs|length }} prélèvement{{ 's' if evs|length > 1 }}"><span class="num">{{ day }}</span><span class="dots">{% for l in evs[:4] %}<i class="dot {{ account_class(l.account) }}"></i>{% endfor %}</span></a>
-      {% else %}<span class="num">{{ day }}</span>{% endif %}
-      {% for l in by_day.get(day, []) %}<a class="ev {{ account_class(l.account) }}" href="{{ url_for('views.postes') }}#poste-{{ l.poste_id }}" title="{{ l.account }} · changer le jour">{{ l.name }} <b>{{ l.planned|eur(decimales=False) }}</b></a>{% endfor %}
-      {% endif %}
+  <p class="cal-summary">{% if n_debits %}<b>{{ n_debits }}</b> prélèvement{{ 's' if n_debits > 1 }} ce mois · <b>{{ month_total|eur(decimales=False) }}</b>{% else %}Aucun prélèvement daté ce mois.{% endif %}</p>
+  <div class="cal-layout">
+    <div class="cal" role="grid" aria-label="Prélèvements du mois">
+      {% for d in ['lun', 'mar', 'mer', 'jeu', 'ven', 'sam', 'dim'] %}<div class="dow">{{ d }}</div>{% endfor %}
+      {% for week in weeks %}{% for day in week %}
+      {% set evs = by_day.get(day, []) if day else [] %}
+      <div class="day {% if not day %}empty{% endif %} {% if day == today_day %}today{% endif %} {% if evs %}has{% endif %}">
+        {% if evs %}<a class="day-link" href="#jour-{{ day }}" aria-label="Le {{ day }} : {{ evs|length }} prélèvement{{ 's' if evs|length > 1 }}, {{ day_totals[day]|eur(decimales=False) }}">
+          <span class="num">{{ day }}</span>
+          <span class="day-total">{{ day_totals[day]|eur(decimales=False) }}</span>
+          <span class="dots">{% for l in evs[:5] %}<i class="dot {{ account_class(l.account) }}"></i>{% endfor %}</span>
+        </a>
+        {% elif day %}<span class="num">{{ day }}</span>{% endif %}
+      </div>
+      {% endfor %}{% endfor %}
     </div>
-    {% endfor %}{% endfor %}
+    <ol class="agenda">
+      {% for day in days %}
+      <li id="jour-{{ day }}" class="agenda-day">
+        <div class="agenda-head"><span class="daynum">{{ day }}</span><span class="dayname">{{ ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'][weekday[day]] }}</span><b>{{ day_totals[day]|eur(decimales=False) }}</b></div>
+        <ul>
+          {% for l in by_day[day] %}
+          <li><a href="{{ url_for('views.postes') }}#poste-{{ l.poste_id }}" title="Changer le jour de ce poste"><span class="dot {{ account_class(l.account) }}"></span><span class="ev-name">{{ l.name }}<small>{{ l.account }}</small></span><span class="ev-amount">{% if l.planned %}{{ l.planned|eur(decimales=False) }}{% else %}—{% endif %}</span></a></li>
+          {% endfor %}
+        </ul>
+      </li>
+      {% else %}<li class="muted">Aucun prélèvement daté : indique les jours ci-dessous.</li>{% endfor %}
+    </ol>
   </div>
-  <ul class="agenda">
-    {% for day in days %}
-    <li id="jour-{{ day }}"><span class="daynum">{{ day }}</span>
-      <div>{% for l in by_day[day] %}<a class="ev {{ account_class(l.account) }}" href="{{ url_for('views.postes') }}#poste-{{ l.poste_id }}">{{ l.name }} <b>{{ l.planned|eur }}</b></a>{% endfor %}</div></li>
-    {% else %}<li class="muted">Aucun prélèvement daté.</li>{% endfor %}
-  </ul>
 </section>
 
 {% if undated %}
