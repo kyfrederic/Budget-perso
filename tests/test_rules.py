@@ -290,3 +290,33 @@ def test_credit_part_remboursee():
     st = credit_status("prèt conso", None, bal, month_index(2026, 11))
     assert st["peak"] == E(2552) and st["repaid_pct"] == 26
     assert credit_status("x", None, [(OCT, 0)], OCT)["repaid_pct"] is None
+
+
+# ------------------------------------------------------------- budget fixé
+
+def test_budget_fixe_ne_suit_pas_les_postes(settings):
+    m = mois()                                    # postes prévus : 2 410 €
+    m.budget_fixed = E(2410)
+    by = {l.name: l for l in m.lines}
+    by["Nourriture"].planned = E(450)             # un prévu change en cours de mois
+    s = summarize(m, settings)
+    assert s.total_budget == E(2410) and s.planned_total == E(2460)
+    assert s.epargne_debut == E(590)              # salaire − budget fixé, inchangé
+
+
+def test_ecart_au_budget(settings):
+    # Sans réel ni imprévu : dépenses = postes hors matelas → il reste le matelas.
+    m = mois(); m.budget_fixed = E(2410)
+    s = summarize(m, settings)
+    assert s.spent == E(1910) and s.budget_gap == E(500)
+    # Dépassement : 2 410 € de budget, 2 460 € dépensés.
+    m = mois(Nourriture=950); m.budget_fixed = E(2410)
+    s = summarize(m, settings)
+    assert s.budget_gap == E(-50)
+    # Pile dans le budget.
+    m = mois(Nourriture=900); m.budget_fixed = E(2410)
+    assert summarize(m, settings).budget_gap == 0
+
+
+def test_sans_budget_fixe_on_prend_les_prevus(settings):
+    assert summarize(mois(), settings).total_budget == E(2410)

@@ -47,7 +47,12 @@
 
 <dl class="facts">
   <div><dt>Salaire reçu fin {{ salary_month }}</dt><dd>{{ row.salary_net|eur(decimales=False) }}</dd></div>
-  <div><dt>Budget du mois</dt><dd>{{ summary.total_budget|eur(decimales=False) }}</dd></div>
+  <div class="budget-fact"><dt>Budget du mois</dt>
+    <dd>{{ summary.total_budget|eur(decimales=False) }}
+      {% if summary.budget_gap < 0 %}<span class="gap over" title="Dépassement du budget">{{ summary.budget_gap|eur(signe=True, decimales=False) }}</span>
+      {% elif summary.budget_gap > 0 %}<span class="gap under" title="Reste dans le budget">{{ summary.budget_gap|eur(signe=True, decimales=False) }}</span>
+      {% else %}<span class="gap exact" title="Pile dans le budget">✓</span>{% endif %}</dd>
+    <small>dépensé {{ summary.spent|eur(decimales=False) }}</small></div>
   <div><dt>Taux d'épargne</dt><dd>{% if summary.taux_epargne is not none %}{{ '%.0f'|format(summary.taux_epargne) }} %{% else %}—{% endif %}</dd></div>
 </dl>
 
@@ -194,6 +199,11 @@
     <label>Net imposable <input name="net_imposable" inputmode="decimal" value="{{ row.net_imposable|saisie }}"></label>
     <label>Prélèvement à la source <input name="pas" inputmode="decimal" value="{{ row.pas|saisie }}"></label>
   </div>
+  <label class="budget-field">Budget fixé du mois <input name="budget_fixed" id="budget_fixed" inputmode="decimal" value="{{ row.budget_fixed|saisie }}">
+    <small class="muted">Fixé en début de mois : il ne change pas quand tu modifies un poste. L'épargne du mois = salaire − ce budget.</small></label>
+  {% if summary.planned_total != summary.total_budget %}
+  <p class="note calm">Postes prévus : {{ summary.planned_total|eur(decimales=False) }}, soit {{ (summary.planned_total - summary.total_budget)|abs|eur(decimales=False) }} {{ 'au-dessus' if summary.planned_total > summary.total_budget else 'en dessous' }} du budget fixé.</p>
+  {% endif %}
 
   <h2>Postes</h2>
   <div class="lines">

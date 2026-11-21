@@ -379,3 +379,51 @@ def test_calendrier_totaux_par_jour(app, client):
     jour15 = cal[cal.index('id="jour-15"'):]
     jour15 = jour15[:jour15.index("</li>\n      </ul>") if "</li>\n      </ul>" in jour15 else 2000]
     assert "550 €" in cal and "Électricité" in jour15 and "Nourriture" in jour15
+
+
+def test_budget_fixe(app, client):
+    seed(app)
+    t = login(client)
+    fixe = lambda m=10: q(app, "SELECT budget_fixed FROM months WHERE month = ?", m)[0]["budget_fixed"]
+    depart = fixe()
+    assert depart == sum(r["planned"] for r in q(app, "SELECT planned FROM lines"))
+    # Modifier un prévu ne change pas le budget fixé.
+    line = q(app, "SELECT l.id FROM lines l JOIN postes p ON p.id = l.poste_id WHERE p.name = 'Nourriture'")[0]["id"]
+    rows = q(app, "SELECT id, planned FROM lines")
+    data = {"csrf": t, "salary_net": "3200"}
+    for r in rows:
+        data[f"planned_{r['id']}"] = str(r["planned"] / 100).replace(".", ",")
+    data[f"planned_{line}"] = "450"
+    client.post("/mois/2026/10", data=data)
+    assert fixe() == depart
+    import html
+    page = html.unescape(client.get("/mois/2026/10").get_data(as_text=True))
+    assert "au-dessus du budget fixé" in page
+    # Le champ « Budget fixé » le change volontairement.
+    data["budget_fixed"] = "3 130"
+    client.post("/mois/2026/10", data=data)
+    assert fixe() == 313000
+    # Un nouveau mois part du total des postes copiés.
+    client.post("/mois/nouveau", data={"csrf": t, "year": 2026, "month": 11, "salary_net": "3000"})
+    assert fixe(11) == sum(r["planned"] for r in q(app, "SELECT l.planned FROM lines l JOIN months m ON m.id = l.month_id WHERE m.month = 11"))
+
+
+def test_migration_budget_fixe(tmp_path, monkeypatch):
+    """Une base d'avant le budget fixé reçoit la colonne, remplie avec le total des prévus."""
+    import sqlite3 as sq
+    from budget import create_app
+    from budget import db as dbmod
+    monkeypatch.setenv("BUDGET_DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    app = create_app({"TESTING": True, "SECRET_KEY": "t"})
+    conn = sq.connect(app.config["DATABASE"])
+    conn.execute("INSERT INTO months (user_id, year, month) VALUES (1, 2026, 9)")
+    mid = conn.execute("SELECT id FROM months").fetchone()[0]
+    conn.execute("INSERT INTO postes (user_id, name, account_id) VALUES (1, 'X', 1)")
+    conn.execute("INSERT INTO lines (month_id, poste_id, planned) VALUES (?, 1, 12345)", (mid,))
+    conn.execute("ALTER TABLE months DROP COLUMN budget_fixed")
+    conn.execute("UPDATE schema_version SET version = 4")
+    conn.commit(); conn.close()
+    create_app({"TESTING": True, "SECRET_KEY": "t"})
+    conn = sq.connect(app.config["DATABASE"])
+    assert conn.execute("SELECT budget_fixed FROM months").fetchone()[0] == 12345

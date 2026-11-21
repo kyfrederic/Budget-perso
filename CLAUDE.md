@@ -217,6 +217,13 @@ L'onglet « Orthodontie » d'Excel est un exemple de projet d'achat ; une télé
 | Catégories | Les postes sont **listés par catégorie** : Charges fixes (ex-« besoins »), Envies, Épargne, puis le matelas à part ; la banque est indiquée sur chaque ligne. Les virements restent calculés par banque. |
 | « Ce que je dois » | Une carte légère par crédit : reste dû, barre de la part remboursée (depuis le plus haut solde connu), évolution du mois, objectif en étiquette ; crédits soldés estompés en dernier. |
 
+### Décisions du 2026-11-21 (budget fixé)
+
+| Sujet | Décision |
+|---|---|
+| Budget du mois | **Fixé en début de mois** (`months.budget_fixed`, total des postes à la création ou du fichier Excel) et **ne suit plus les postes**. L'épargne du mois = salaire − budget fixé. Il ne change que par le champ « Budget fixé » de la saisie. |
+| Écart au budget | Dépenses du mois (postes au réel sinon au prévu + imprévus) comparées au budget fixé : **« −50 € » en rouge** en cas de dépassement, **« +4 € » en vert** s'il reste, coche si pile. Le rouge sert donc aussi au dépassement du budget. |
+
 ## 13 ter. État de la V1
 
 - Stack : Flask + SQLite + pages côté serveur (voir `README.md` pour lancer, configurer et déployer).

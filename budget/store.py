@@ -46,7 +46,9 @@ def load_month(db, row) -> Month:
     saved = db.execute(
         "SELECT 1 FROM transfers_done WHERE month_id = ? AND kind = 'fin'", (row["id"],)
     ).fetchone() is not None
-    return Month(row["year"], row["month"], row["salary_net"], lines, unplanned, closed, saved)
+    keys = row.keys()
+    fixed = row["budget_fixed"] if "budget_fixed" in keys else None
+    return Month(row["year"], row["month"], row["salary_net"], lines, unplanned, closed, saved, fixed)
 
 
 def list_months(db, user_id: int) -> list:
@@ -113,6 +115,12 @@ def create_month(db, user_id: int, year: int, month: int, salary_net, net_imposa
             "SELECT ?, id, default_planned FROM postes WHERE user_id = ? AND active = 1",
             (month_id, user_id),
         )
+    # Le budget est fixé à la création du mois : total des postes copiés. Il ne suit plus
+    # ensuite les modifications des postes (seul le champ « Budget fixé » le change).
+    db.execute(
+        "UPDATE months SET budget_fixed = (SELECT COALESCE(SUM(planned), 0) FROM lines "
+        "WHERE month_id = ?) WHERE id = ?", (month_id, month_id),
+    )
     return month_id
 
 

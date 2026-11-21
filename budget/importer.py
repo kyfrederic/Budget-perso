@@ -278,8 +278,8 @@ def apply(conn, user_id: int, months: list[MonthFile], postes: dict[str, PosteSp
     credit_ids: dict[str, int] = {}
     for mf in months:
         cur = conn.execute(
-            "INSERT INTO months (user_id, year, month, salary_net) VALUES (?, ?, ?, ?)",
-            (user_id, mf.year, mf.month, mf.salary),
+            "INSERT INTO months (user_id, year, month, salary_net, budget_fixed) VALUES (?, ?, ?, ?, ?)",
+            (user_id, mf.year, mf.month, mf.salary, mf.total),
         )
         for p in mf.postes:
             conn.execute(

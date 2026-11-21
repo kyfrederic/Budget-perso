@@ -168,6 +168,13 @@ def month_save(year: int, month: int):
         (_amount("salary_net", "salaire net"), _amount("net_imposable", "net imposable"),
          _amount("pas", "prélèvement à la source"), request.form.get("notes", "")[:2000], row["id"]),
     )
+    if "budget_fixed" in request.form:
+        # Changement volontaire du budget fixé ; vide = on garde la valeur actuelle.
+        fixed = _amount("budget_fixed", "budget fixé")
+        if fixed is not None:
+            if fixed < 0:
+                abort(400, "Le budget fixé ne peut pas être négatif.")
+            db.execute("UPDATE months SET budget_fixed = ? WHERE id = ?", (fixed, row["id"]))
     for l in store.load_month(db, row).lines:
         key = str(l.line_id)
         if f"planned_{key}" not in request.form:

@@ -18,7 +18,7 @@ from flask import current_app, g
 
 SCHEMA = Path(__file__).with_name("schema.sql")
 # À augmenter quand schema.sql change : le schéma (idempotent) est alors rejoué au démarrage.
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 
 def is_postgres(target: str) -> bool:
@@ -195,9 +195,29 @@ def init_schema(conn: Database) -> None:
     if current >= SCHEMA_VERSION:
         return
     conn.executescript(SCHEMA.read_text(encoding="utf-8"))
+    _migrate(conn)
     conn.execute("DELETE FROM schema_version")
     conn.execute("INSERT INTO schema_version (version) VALUES (?)", (SCHEMA_VERSION,))
     conn.commit()
+
+
+def _columns(conn: Database, table: str) -> set[str]:
+    if conn.postgres:
+        rows = conn.execute(
+            "SELECT column_name FROM information_schema.columns WHERE table_name = ?", (table,))
+        return {r[0] for r in rows}
+    return {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+
+
+def _migrate(conn: Database) -> None:
+    """Évolutions d'une base existante (CREATE TABLE IF NOT EXISTS n'ajoute pas de colonne)."""
+    if "budget_fixed" not in _columns(conn, "months"):
+        conn.execute("ALTER TABLE months ADD COLUMN budget_fixed INTEGER")
+    # Mois sans budget fixé : on part du total actuel de leurs postes.
+    conn.execute(
+        "UPDATE months SET budget_fixed = (SELECT COALESCE(SUM(planned), 0) FROM lines "
+        "WHERE lines.month_id = months.id) WHERE budget_fixed IS NULL"
+    )
 
 
 def ensure_user(conn: Database, name: str = "fred") -> int:

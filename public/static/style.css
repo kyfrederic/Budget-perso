@@ -232,6 +232,15 @@ progress.bar.thin { height: 6px; }
 .ring.small { width: 64px; height: 64px; flex: none; }
 .ring.small svg { width: 64px; height: 64px; }
 
+.budget-fact dd { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 8px; }
+.budget-fact small { display: block; color: var(--muted-fg); font-size: .75rem; margin-top: 2px; }
+.gap { font-size: .875rem; font-weight: 700; white-space: nowrap; }
+.gap.over { color: var(--danger); }
+.gap.under { color: var(--positive); }
+.gap.exact { color: var(--positive); }
+.budget-field { max-width: 360px; }
+.budget-field small { display: block; margin-top: var(--s1); font-weight: 400; font-size: .8125rem; }
+
 /* Tuiles (analyse) */
 .tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s2); margin-bottom: var(--s3); }
 .tile { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-s); padding: var(--s3) var(--s4); min-width: 0; }

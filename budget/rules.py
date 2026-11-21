@@ -63,6 +63,8 @@ class Month:
     # Virement « Fin de mois : reste du matelas » coché : le reste a été mis de côté.
     # Le matelas est une dépense ; son reste ne devient de l'épargne que par ce virement.
     matelas_saved: bool = False
+    # Budget fixé en début de mois ; None = pas encore fixé (on prend la somme des prévus).
+    budget_fixed: int | None = None
 
     @property
     def idx(self) -> int:
@@ -96,6 +98,9 @@ class Summary:
     unplanned: int = 0     # somme des achats imprévus payés avec le matelas
     savings_counted: bool = True   # False tant que le mois est en cours (économies pas encore acquises)
     matelas_saved: bool = False    # reste du matelas viré au Livret A (virement de fin de mois coché)
+    planned_total: int = 0         # somme des prévus des postes (peut s'écarter du budget fixé)
+    spent: int = 0                 # dépenses du mois : postes (réel sinon prévu) + imprévus
+    budget_gap: int = 0            # budget fixé − dépenses : > 0 reste, < 0 dépassement
 
     @property
     def complete(self) -> bool:
@@ -107,7 +112,8 @@ class Summary:
 
 def summarize(month: Month, settings: Settings) -> Summary:
     lines = month.lines
-    total = sum(l.planned for l in lines)
+    planned_total = sum(l.planned for l in lines)
+    total = month.budget_fixed if month.budget_fixed is not None else planned_total
     reserve = sum(l.planned for l in lines if l.is_reserve)
     normal = [l for l in lines if not l.is_reserve]
     diffs = [l.diff for l in normal if l.diff is not None]
@@ -118,6 +124,7 @@ def summarize(month: Month, settings: Settings) -> Summary:
     to_savings_end = max(0, rest)
     deficit = max(0, -rest)
 
+    spent = sum(l.effective for l in normal) + unplanned
     epargne_debut = None if month.salary_net is None else month.salary_net - total
     epargne_postes = sum(l.planned for l in normal if l.category == "epargne")
     saved = to_savings_end if month.matelas_saved else 0
@@ -144,6 +151,9 @@ def summarize(month: Month, settings: Settings) -> Summary:
         unplanned=unplanned,
         savings_counted=month.closed,
         matelas_saved=month.matelas_saved,
+        planned_total=planned_total,
+        spent=spent,
+        budget_gap=total - spent,
     )
 
 

@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS months (
     salary_net    INTEGER,
     net_imposable INTEGER,
     pas           INTEGER,          -- prélèvement à la source
+    budget_fixed  INTEGER,          -- budget fixé en début de mois (ne suit pas les postes)
     notes         TEXT NOT NULL DEFAULT '',
     created_at    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (user_id, year, month)
