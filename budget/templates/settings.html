@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Réglages — Budget{% endblock %}
+{% block content %}
+<h1 class="page">Réglages</h1>
+
+<section class="card">
+  <h2>Connexion <span class="count">{{ 'second facteur actif' if totp_on else 'mot de passe seul' }}</span></h2>
+  {% if totp_on %}
+  <p>Un code à 6 chiffres est demandé à chaque connexion. Il te reste {{ recovery_left }} code{{ 's' if recovery_left != 1 }} de secours.</p>
+  {% else %}
+  <p class="note warn">Ton budget est accessible depuis Internet avec un simple mot de passe. Active le code à 6 chiffres : c'est la meilleure protection si le mot de passe fuit.</p>
+  {% endif %}
+  <a class="btn {{ '' if totp_on else 'primary-btn' }}" href="{{ url_for('admin.security') }}">{{ 'Gérer le second facteur' if totp_on else 'Activer le code à 6 chiffres' }}</a>
+</section>
+
+<section class="card">
+  <h2>Sauvegarde</h2>
+  <p>Télécharge toutes les données du budget dans un fichier, à garder ailleurs que chez l'hébergeur. Les photos des tickets ({{ n_photos }}) n'y sont pas : seuls les montants sont sauvegardés.</p>
+  <a class="btn primary-btn" href="{{ url_for('admin.backup') }}">Télécharger une sauvegarde</a>
+</section>
+
+<section class="card">
+  <h2>Restaurer une sauvegarde</h2>
+  <p class="muted">Remplace <b>toutes</b> les données actuelles du budget par celles du fichier. Ton mot de passe et ton second facteur ne changent pas.</p>
+  <form method="post" action="{{ url_for('admin.restore') }}" enctype="multipart/form-data">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <label>Fichier de sauvegarde <input type="file" name="file" id="restore_file" accept="application/json,.json" required></label>
+    <label>Ton mot de passe, pour confirmer <input type="password" name="password" id="restore_password" autocomplete="current-password" required></label>
+    <button>Restaurer et remplacer les données</button>
+  </form>
+</section>
+
+{% if not has_data %}
+<section class="card">
+  <h2>Import des fichiers Excel</h2>
+  <p>Le budget est vide. Tu peux y déposer tes fichiers <code>MOIS_SOLO.xlsx</code>.</p>
+  <a class="btn primary-btn" href="{{ url_for('admin.import_excel') }}">Importer mes fichiers Excel</a>
+</section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,8 @@
+{% from "_icons.html" import icon %}
+<div class="monthnav">
+  {% if has_prev %}<a class="arrow" href="{{ url_for(request.endpoint, year=prev[0], month=prev[1]) }}" aria-label="Mois précédent">{{ icon('gauche') }}</a>{% else %}<span class="arrow off">{{ icon('gauche') }}</span>{% endif %}
+  <h1><small>{{ titre }}</small> <span>{{ month_label(m.year, m.month) }}</span></h1>
+  {% if has_next %}<a class="arrow" href="{{ url_for(request.endpoint, year=next[0], month=next[1]) }}" aria-label="Mois suivant">{{ icon('droite') }}</a>
+  {% elif is_latest %}<a class="arrow plus" href="{{ url_for('views.new_month') }}" title="Créer le mois suivant" aria-label="Créer le mois suivant">{{ icon('ajouter') }}</a>
+  {% else %}<span class="arrow off">{{ icon('droite') }}</span>{% endif %}
+</div>

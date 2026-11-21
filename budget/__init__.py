@@ -1,0 +1,107 @@
+"""Application de budget personnel (V1)."""
+from __future__ import annotations
+
+import hashlib
+import os
+import secrets
+from datetime import timedelta
+from pathlib import Path
+
+from flask import Flask
+
+from . import db as dbmod
+from .money import date_fr, format_eur, format_input, month_label
+from .settings import load_settings
+
+ROOT = Path(__file__).resolve().parent.parent
+
+
+def _secret_key(instance: Path) -> str:
+    env = os.environ.get("BUDGET_SECRET_KEY")
+    if env:
+        return env
+    f = instance / "secret_key"
+    if not f.exists():
+        f.write_text(secrets.token_hex(32))
+        f.chmod(0o600)
+    return f.read_text().strip()
+
+
+def create_app(test_config: dict | None = None) -> Flask:
+    on_vercel = bool(os.environ.get("VERCEL"))
+    # Sur Vercel le disque est en lecture seule (sauf /tmp) et rien n'y survit : tout va en base.
+    instance = Path(os.environ.get("BUDGET_DATA_DIR", "/tmp/budget" if on_vercel else ROOT / "instance"))
+    database_url = os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL")
+    if on_vercel and not database_url:
+        raise RuntimeError("DATABASE_URL manquant : ajoute l'intégration Neon (Postgres) au projet Vercel.")
+    if on_vercel and not os.environ.get("BUDGET_SECRET_KEY"):
+        raise RuntimeError("BUDGET_SECRET_KEY manquant : ajoute cette variable dans les réglages Vercel.")
+    # Fichiers statiques dans public/static : servis par Flask en local, directement par Vercel en ligne.
+    app = Flask(__name__, instance_path=str(instance), static_folder=str(ROOT / "public" / "static"),
+                static_url_path="/static")
+    instance.mkdir(parents=True, exist_ok=True)
+    app.config.update(
+        DATABASE=database_url or str(instance / "budget.sqlite"),
+        SETTINGS_FILE=os.environ.get("BUDGET_SETTINGS", str(ROOT / "config" / "settings.toml")),
+        MODELE_FILE=os.environ.get("BUDGET_MODELE", str(ROOT / "config" / "modele.toml")),
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Lax",
+        # En production (HTTPS) le cookie n'est jamais envoyé en clair.
+        # BUDGET_DEV=1 uniquement pour un essai local en http://localhost.
+        SESSION_COOKIE_SECURE=os.environ.get("BUDGET_DEV") != "1",
+        SESSION_COOKIE_NAME="budget_session",
+        # Assez pour une photo de ticket (10 Mo vérifiés dans la route) ; le reste est minuscule.
+        MAX_CONTENT_LENGTH=12 * 1024 * 1024,
+    )
+    if test_config:
+        app.config.update(test_config)
+    if not app.config.get("SECRET_KEY"):
+        app.config["SECRET_KEY"] = _secret_key(instance)
+
+    settings = load_settings(app.config["SETTINGS_FILE"])
+    app.config["SETTINGS"] = settings
+    app.permanent_session_lifetime = timedelta(hours=settings.duree_session_heures)
+
+    if os.environ.get("BUDGET_BEHIND_PROXY") == "1" or on_vercel:
+        # Derrière Caddy : la vraie adresse du client est dans X-Forwarded-For.
+        from werkzeug.middleware.proxy_fix import ProxyFix
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
+    conn = dbmod.connect(app.config["DATABASE"])
+    dbmod.init_schema(conn)
+    user_id = dbmod.ensure_user(conn)
+    dbmod.sync_accounts(conn, user_id, settings)
+    conn.close()
+
+    app.teardown_appcontext(dbmod.close_db)
+    app.jinja_env.filters["eur"] = format_eur
+    app.jinja_env.filters["saisie"] = format_input
+    app.jinja_env.filters["datefr"] = date_fr
+    app.jinja_env.globals["month_label"] = month_label
+
+    # Adresse d'un fichier statique avec l'empreinte de son contenu (?v=…) : le navigateur
+    # peut le garder en cache longtemps, et recharge forcément la nouvelle version quand il change.
+    fingerprints: dict[str, str] = {}
+
+    def asset(filename: str) -> str:
+        from flask import url_for
+        if filename not in fingerprints:
+            path = Path(app.static_folder) / filename
+            try:
+                fingerprints[filename] = hashlib.sha256(path.read_bytes()).hexdigest()[:10]
+            except OSError:
+                # Fichier absent de la fonction (Vercel) : identifiant de la version déployée,
+                # qui change à chaque mise en ligne.
+                fingerprints[filename] = (os.environ.get("VERCEL_GIT_COMMIT_SHA")
+                                          or os.environ.get("VERCEL_DEPLOYMENT_ID") or "0")[:10]
+        return url_for("static", filename=filename, v=fingerprints[filename])
+
+    app.jinja_env.globals["asset"] = asset
+
+    from . import admin, auth, cli, views
+    app.jinja_env.globals["csrf_token"] = auth.csrf_token
+    app.register_blueprint(auth.bp)
+    app.register_blueprint(views.bp)
+    app.register_blueprint(admin.bp)
+    cli.register(app)
+    return app

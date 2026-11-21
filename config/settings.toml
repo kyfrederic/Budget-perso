@@ -1,0 +1,106 @@
+# Paramètres de l'application budget.
+# Modifier ce fichier puis redémarrer l'application (docker compose restart app).
+# Tous les montants sont en euros.
+
+[matelas]
+# Montant fixe alloué chaque mois au poste « Réserve ». Il ne s'accumule pas.
+montant = 500
+
+[epargne]
+# Compte qui reçoit l'épargne (salaire − budget, puis reste du matelas).
+compte = "Livret A LCL"
+# Compte sur lequel arrive le salaire (point de départ des virements).
+compte_salaire = "LCL"
+
+[propositions]
+# Nombre de mois de réel requis avant toute proposition.
+mois_minimum = 2
+# Nombre de mois consécutifs au-dessus du seuil pour déclencher.
+mois_consecutifs = 2
+# Aucune proposition si l'écart est sous CES DEUX seuils à la fois.
+# (un écart doit dépasser 10 % ET 10 € pour compter).
+seuil_pourcentage = 10
+seuil_euros = 10
+# La nouvelle valeur = médiane des N derniers mois de réel, arrondie.
+fenetre_mediane = 3
+arrondi = 5
+
+[saisonnalite]
+# Mois de la saison forte (chauffage, électricité…).
+mois_saison_forte = [11, 12, 1, 2]
+# Nombre de mois avant le début de la saison forte où l'alerte préventive apparaît.
+alerte_mois_avant = 1
+
+[repartition]
+# Cible 50-30-20 (en % du salaire net).
+besoins = 50
+envies = 30
+epargne = 20
+
+[securite]
+# Durée de validité d'une session (heures).
+duree_session_heures = 12
+# Tentatives de connexion autorisées par IP sur la fenêtre ci-dessous.
+tentatives_max = 5
+fenetre_tentatives_minutes = 15
+
+# Comptes bancaires : nom, couleur dans le calendrier, ordre d'affichage.
+# Ajouter un bloc [[comptes]] pour un nouveau compte.
+[[comptes]]
+nom = "Boursorama"
+couleur = "#e6007e"
+description = "Prélèvements : factures, crédits, abonnements"
+
+[[comptes]]
+nom = "Compte joint"
+couleur = "#2f80ed"
+description = "Courses"
+
+[[comptes]]
+nom = "Revolut"
+couleur = "#4b4b4b"
+description = "Argent de poche"
+
+[[comptes]]
+nom = "N26"
+couleur = "#26a69a"
+description = "Matelas, cantine du boulot"
+
+[[comptes]]
+nom = "LCL"
+couleur = "#f2a900"
+description = "Salaire, assurances, carburant, emprunt"
+
+[[comptes]]
+nom = "Livret A LCL"
+couleur = "#2e7d32"
+description = "Épargne"
+
+# Import unique des fichiers MOIS_SOLO.xlsx (flask --app budget import-excel).
+[import]
+# Compte du matelas (poste « Reserve »). Décision : N26, même si Excel le range ailleurs.
+compte_reserve = "N26"
+# Compte par défaut d'un poste absent de l'onglet « Depences personnelles ».
+compte_defaut = "LCL"
+
+# Titre de bloc dans l'onglet « Depences personnelles » -> compte de l'appli.
+[import.comptes]
+"Compte LCL" = "LCL"
+"Bourso perso" = "Boursorama"
+"Compte Revolut" = "Revolut"
+"Bourso joint" = "Compte joint"
+"Compte N26" = "N26"
+"Cantine boulot" = "N26"
+
+# Postes renommés en cours d'année : ancien nom -> nom actuel.
+[import.alias]
+"Abonnement chatGPT" = "Abonnement chatGPT/claude"
+
+# Catégorie imposée, prioritaire sur l'onglet « 50-30-20 ».
+# Rembourser un prêt n'est pas épargner : il ne doit pas gonfler le taux d'épargne.
+[import.categories]
+"prêt conso" = "besoins"
+
+# Compte imposé pour un poste, prioritaire sur l'onglet « Depences personnelles ».
+[import.comptes_postes]
+"Livret A" = "Livret A LCL"

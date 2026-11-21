@@ -1,0 +1,9 @@
+# HTTPS automatique (Let's Encrypt) et redirection http -> https.
+{$DOMAINE} {
+	encode gzip
+	reverse_proxy app:8000
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+}

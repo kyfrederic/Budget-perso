@@ -141,6 +141,101 @@ L'onglet « Orthodontie » d'Excel est un exemple de projet d'achat ; une télé
 - Postes saisonniers : sans historique d'un an, la première année repose sur le montant fixe choisi à la main ; l'hiver peut consommer tout le matelas de 500 € si le montant fixé est trop bas.
 - Sécurité du VPS et sauvegardes à prévoir dès la V1.
 
+## 13 bis. Décisions de la session du 2026-11-13 (clarifications avant la V1)
+
+| Sujet | Décision |
+|---|---|
+| Seuil des propositions | Un écart ne compte que s'il dépasse **10 % ET 10 €**. |
+| Économies d'un poste | Elles **compensent** les dépassements : reste du matelas = 500 € − dépassements + économies. L'alerte se déclenche quand ce reste devient négatif. |
+| Propositions de baisse | **Oui** pour les postes ni saisonniers ni contractuels, avec les mêmes seuils. |
+| Proposition acceptée | Le nouveau prévu s'applique au **mois en cours**, puis il est copié dans les mois suivants. |
+| Rattachement du salaire | Le salaire reçu fin du mois M finance le budget du **mois M+1**. |
+| Comptes | Salaire sur **LCL** ; matelas sur **N26** ; épargne (salaire − budget, puis reste du matelas) sur le **Livret A LCL**. |
+| Second facteur | **Non** en V1 : mot de passe long + limitation des tentatives. |
+| 50-30-20 | Classement repris de l'onglet Excel, modifiable poste par poste. |
+| Laetitia | Colonne facultative **par poste**, affichée, jamais additionnée. |
+| Fichiers Excel | Fournis par Fred pendant une session, **jamais commités** (dossier `import/` ignoré par git). Le dépôt ne contient que du code et des montants d'exemple. |
+
+### Décisions de design (même jour)
+
+| Sujet | Décision |
+|---|---|
+| Ambiance | **Nature**, choisie parmi trois maquettes. Objectif : agréable, non stressant, animé et fluide. |
+| Thème | **Toujours clair**, quel que soit le réglage de l'appareil. |
+| Couleur d'alerte | Le rouge est réservé au risque de découvert. Dépassement de poste et **chèque oublié** passent en ton argile (remplace le « signalé en rouge » de la section 10). |
+| Virements | **À cocher** un par un quand ils sont faits, y compris le virement de fin de mois du reste du matelas. État enregistré par mois. |
+| Écran Mois | Lecture d'abord (épargne du mois, matelas, suggestions, virements, avancement), saisie plus bas sur le même écran. |
+| Propositions | Présentées comme des idées : « Oui, ajuster » / « Plus tard ». « Plus tard » vaut refus pour ce mois de référence. |
+
+### Décisions du 2026-11-14 (import Excel, virements)
+
+| Sujet | Décision |
+|---|---|
+| Import Excel | Les 9 fichiers (mars à novembre 2026) sont importés **mois par mois** : salaire, postes et prévus de chaque fichier, soldes de crédits. Remplace « les prévus passés ne sont pas importés » de la section 5. Aucun réel (les fichiers n'en ont pas). |
+| Fichiers Excel | Fred les a déposés sur la branche `main` et choisit de les y **laisser**. Ils ne sont pas copiés dans la branche de l'appli ; les tests utilisent des classeurs fictifs. |
+| Prêt conso | Classé en **besoins** (et non en épargne comme dans l'onglet 50-30-20) : rembourser un prêt ne compte pas dans le taux d'épargne. |
+| Matelas | Reste sur **N26**, même si Excel range « Reserve » chez Boursorama. |
+| Livret A | Le poste « Livret A » est rattaché au compte « Livret A LCL » et rejoint le virement d'épargne. |
+| Reste du salaire | À chaque virement coché, son montant est **retranché du salaire** : l'écran affiche ce qu'il reste sur LCL à cet instant, et ce qu'il restera quand tout sera fait. Le virement de fin de mois du matelas ne part pas du salaire et n'est pas compté. |
+
+### Décisions du 2026-11-15 (imprévus, achats, photo du ticket)
+
+| Sujet | Décision |
+|---|---|
+| Rôle du matelas | Il absorbe les dépassements **et les achats imprévus** (resto, achat hors budget). **Reste = 500 € − dépassements − imprévus + économies.** Complète la section 3. |
+| Économies en cours de mois | Elles ne sont créditées au matelas qu'**une fois le mois terminé** : avant, un poste sous son prévu n'a simplement pas fini d'être dépensé. Les dépassements et les imprévus, eux, comptent tout de suite. |
+| Achats | Saisis **un par un** (libellé, montant, date), imputés au **matelas (imprévu)** ou à **un poste**. Sur un poste, le montant s'ajoute au réel du poste, qui reste un total modifiable à la main (assouplit la section 4). |
+| Catégorie d'un imprévu | **Envies** par défaut, « besoin » au choix à la saisie. |
+| Matelas vide | Constat posé en ton argile ; le rouge n'apparaît que si le reste devient négatif. |
+| Photo du ticket | Lue **sur le serveur** par Tesseract (aucun service tiers). Le montant, la date et le commerçant sont des propositions, **toujours confirmées** avant d'enregistrer. La photo est gardée (réencodée, sans métadonnées) dans `instance/tickets/` et sauvegardée. |
+
+### Décisions du 2026-11-16 (hébergement sur Vercel)
+
+| Sujet | Décision |
+|---|---|
+| Hébergement | **Vercel** + base **Postgres chez Neon** (région Europe), à la place du VPS. Fred accepte que ses données soient chez ces deux prestataires : la règle « pas de service tiers » de la section 11 ne vaut plus pour l'hébergement et la base. Le VPS (Docker + Caddy + restic) reste une variante documentée. |
+| Base de données | `budget/db.py` sert SQLite (essais, tests) et Postgres (`DATABASE_URL`) avec le même code. Les tests passent sur les deux (`TEST_DATABASE_URL`). |
+| Photos des tickets | Stockées **dans la base**, réduites dans le navigateur avant l'envoi. |
+| Lecture des tickets | **Dans le navigateur** (tesseract.js servi par l'appli) ; Tesseract côté serveur reste un repli hors Vercel. |
+| Mise en route | Depuis l'appli : écran protégé par `BUDGET_SETUP_CODE`, puis import Excel par écran. Plus besoin de commandes. |
+| Second facteur | **Ajouté** (remplace le « Non en V1 » du 2026-11-13) : code à 6 chiffres, codes de secours, proposé dès la mise en route. |
+| Sauvegarde | Fichier téléchargé depuis les Réglages (sans les photos) + historique de Neon. Remplace la sauvegarde nocturne automatique hors du VPS, à réintroduire plus tard si besoin. |
+
+### Décisions du 2026-11-18 (écran du mois, matelas, 50-30-20)
+
+| Sujet | Décision |
+|---|---|
+| Écran du mois | S'ouvre sur **« Ce que je dois »** : total dû et chaque crédit (reste dû, évolution, objectif). L'épargne du mois et le matelas passent en dessous, en plus petit. |
+| Matelas | **Ligne de dépense, pas de l'épargne** : il peut servir à tout moment. L'épargne du mois = salaire − budget ; le reste du matelas ne s'y ajoute que lorsqu'il est **viré au Livret A** (virement de fin de mois coché). Remplace « L'épargne du mois = (salaire − budget) + reste du matelas » de la section 3. |
+| Réel par défaut | **Réel = prévu** tant que rien n'est saisi ; un réel saisi ou des achats notés sur le poste le remplacent. |
+| 50-30-20 | Porte sur le **budget du mois** (pourcentages de ce budget, plus du salaire). Le matelas ne compte pas par défaut, seulement **selon son usage** : chaque imprévu dans sa catégorie (envies ou besoins), un dépassement dans la catégorie de son poste, le reste en épargne s'il est viré au Livret A. |
+
+### Décisions du 2026-11-18 (suite : catégories, crédits)
+
+| Sujet | Décision |
+|---|---|
+| Catégories | Les postes sont **listés par catégorie** : Charges fixes (ex-« besoins »), Envies, Épargne, puis le matelas à part ; la banque est indiquée sur chaque ligne. Les virements restent calculés par banque. |
+| « Ce que je dois » | Une carte légère par crédit : reste dû, barre de la part remboursée (depuis le plus haut solde connu), évolution du mois, objectif en étiquette ; crédits soldés estompés en dernier. |
+
+### Décisions du 2026-11-21 (budget fixé)
+
+| Sujet | Décision |
+|---|---|
+| Budget du mois | **Fixé en début de mois** (`months.budget_fixed`, total des postes à la création ou du fichier Excel) et **ne suit plus les postes**. L'épargne du mois = salaire − budget fixé. Il ne change que par le champ « Budget fixé » de la saisie. |
+| Écart au budget | Dépenses du mois (postes au réel sinon au prévu + imprévus) comparées au budget fixé : **« −50 € » en rouge** en cas de dépassement, **« +4 € » en vert** s'il reste, coche si pile. Le rouge sert donc aussi au dépassement du budget. |
+
+## 13 ter. État de la V1
+
+- Stack : Flask + SQLite + pages côté serveur (voir `README.md` pour lancer, configurer et déployer).
+- Règles métier dans `budget/rules.py` (fonctions pures, testées dans `tests/test_rules.py`). Montants stockés en centimes.
+- **Design** : ambiance « Nature » (sauge et argile, toujours claire, animée), décrite dans `design-system/budget/MASTER.md`. Toute évolution d'écran part de ce fichier. CSS simple, police hébergée localement, mouvement dans `public/static/app.js`, pas de style ni de script en ligne (CSP). Le skill `ui-ux-pro-max` est installé dans `.claude/skills/`.
+- **Import Excel** : `flask --app budget import-excel DOSSIER --annee 2026` (aperçu), `--ecrire` pour importer dans une base vide. Lecture décrite en tête de `budget/importer.py`, correspondances dans `[import]` de `config/settings.toml`. Vérifié sur les 9 fichiers : totaux identiques à Excel.
+- **Achats et tickets** : `budget/receipt.py` (préparation de l'image, extraction du total), `public/static/ocr/ticket.js` (lecture dans le navigateur), table `purchases`, écran `purchase.html`.
+- **Hébergement Vercel** : `api/index.py` (point d'entrée), `vercel.json` (région Paris ; fichiers statiques dans `public/static`, servis directement par Vercel), `.vercelignore`. Variables : `DATABASE_URL` (Neon), `BUDGET_SECRET_KEY`, `BUDGET_SETUP_CODE`. Marche à suivre dans `README.md`.
+- **Réglages** (`budget/admin.py`) : second facteur, import Excel, sauvegarde et restauration. Second facteur dans `budget/totp.py`.
+- **En ligne** : https://budget-perso-psi.vercel.app (projet Vercel `budget-perso`, base Neon, déploiement automatique à chaque push sur `claude/personal-budget-app-l2w4bt`).
+- **Reste à faire en V1** : première ouverture par Fred (mot de passe, second facteur, import Excel). Net imposable et prélèvement à la source de mars à novembre à saisir à la main.
+
 ## 14. Prochaines étapes
 
 1. Dessiner les écrans de la V1 (mois en cours, nouveau mois, calendrier, analyse).

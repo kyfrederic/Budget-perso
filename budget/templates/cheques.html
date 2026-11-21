@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Chèques — Budget{% endblock %}
+{% block content %}
+<h1 class="page">Chèques</h1>
+<form method="post" class="card">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <h2>Nouveau chèque</h2>
+  <div class="row3">
+    <label>Montant <input name="amount" inputmode="decimal" required placeholder="0,00"></label>
+    <label>Bénéficiaire <input name="payee" required maxlength="120"></label>
+    <label>Compte <select name="account_id"><option value="">—</option>{% for a in accounts %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}</select></label>
+  </div>
+  <div class="row3">
+    <label>Mois prévu du dépôt <select name="month">{% for i in range(1, 13) %}<option value="{{ i }}" {% if i == default_month %}selected{% endif %}>{{ MOIS_FR[i-1] }}</option>{% endfor %}</select></label>
+    <label>Année <input type="number" name="year" value="{{ default_year }}" min="2000" max="2100" required></label>
+    <label>Note <input name="note" maxlength="300"></label>
+  </div>
+  <button class="primary">Ajouter</button>
+</form>
+
+<section class="card">
+  <h2>Tous les chèques</h2>
+  <ul class="cheques">
+    {% for c in cheques %}
+    {% set late = c.status == 'pending' and month_index(c.year, c.month) < now_idx %}
+    <li class="{{ c.status }} {% if late %}late{% endif %}">
+      <div><b>{{ c.amount|eur }}</b> — {{ c.payee }}
+        <small class="muted">· {{ month_label(c.year, c.month) }}{% if c.account %} · {{ c.account }}{% endif %}{% if c.note %} · {{ c.note }}{% endif %}</small>
+        {% if late %}<br><small class="late-txt">Toujours en attente : as-tu oublié de le déposer ?</small>{% endif %}
+      </div>
+      <div class="actions">
+        {% if c.status == 'pending' %}
+        <form method="post" action="{{ url_for('views.cheque_action', cheque_id=c.id, action='debite') }}"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><button class="small primary">Débité</button></form>
+        {% else %}
+        <span class="badge ok">débité</span>
+        <form method="post" action="{{ url_for('views.cheque_action', cheque_id=c.id, action='attente') }}"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><button class="small link">Annuler</button></form>
+        {% endif %}
+        <form method="post" action="{{ url_for('views.cheque_action', cheque_id=c.id, action='supprimer') }}"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><button class="small link" aria-label="Supprimer le chèque pour {{ c.payee }}">Supprimer</button></form>
+      </div>
+    </li>
+    {% else %}<li class="muted">Aucun chèque.</li>{% endfor %}
+  </ul>
+</section>
+{% endblock %}

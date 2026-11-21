@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Crédits — Budget{% endblock %}
+{% block content %}
+<h1 class="page">Crédits <small class="muted">· {{ total|eur(decimales=False) }} restant dû</small></h1>
+{% for c in credits %}
+{% set soldé = c.balance is not none and c.balance <= 0 %}
+<section class="card credit {% if soldé %}done{% endif %}">
+  <div class="debt-top">
+    <h2 class="credit-name">{{ c.name[:1]|upper }}{{ c.name[1:] }}</h2>
+    <span class="credit-amount">{% if soldé %}<span class="pill ok">Soldé</span>{% else %}{{ c.balance|eur(decimales=False) }}{% endif %}</span>
+  </div>
+  {% if not soldé and c.balance is not none %}
+  {% if c.repaid_pct %}<progress class="bar thin" max="100" value="{{ c.repaid_pct }}" data-bar aria-label="Part remboursée">{{ c.repaid_pct }} %</progress>{% endif %}
+  <div class="debt-meta">
+    <span>{% if c.delta %}{{ c.delta|eur(signe=True, decimales=False) }} sur le dernier mois saisi{% else %}inchangé sur le dernier mois saisi{% endif %}{% if c.repaid_pct %} · {{ c.repaid_pct }} % remboursé{% endif %}</span>
+    {% if c.target_date %}<span class="pill {{ 'ok' if c.on_track is true else ('late' if c.on_track is false else '') }}">avant le {{ c.target_date|datefr }}{% if c.on_track is true %} · tenable{% elif c.on_track is false %} · rythme à revoir{% endif %}</span>{% endif %}
+  </div>
+  {% if c.on_track is false and c.needed %}<p class="muted small">Il faudrait {{ ((c.needed / 100)|round|int * 100)|eur(decimales=False) }} par mois{% if c.pace is not none %} (rythme actuel : {{ ((c.pace / 100)|round|int * 100)|eur(decimales=False) }}){% endif %}.</p>{% endif %}
+  {% elif c.balance is none %}<p class="muted small">Aucun solde saisi pour l'instant.</p>{% endif %}
+  <details class="credit-more">
+    <summary>Saisir un solde · historique</summary>
+  <form method="post" action="{{ url_for('views.credit_balance', credit_id=c.id) }}" class="inline">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <label>Mois <select name="month">{% for i in range(1, 13) %}<option value="{{ i }}" {% if i == default_month %}selected{% endif %}>{{ MOIS_FR[i-1] }}</option>{% endfor %}</select></label>
+    <label>Année <input type="number" name="year" value="{{ default_year }}" min="2000" max="2100"></label>
+    <label>Reste dû <input name="balance" inputmode="decimal" required placeholder="0,00"></label>
+    <button>Enregistrer le solde</button>
+  </form>
+  {% if c.rows %}
+  <table class="plain"><tbody>
+    {% for (y, mo), b in c.rows %}<tr><td>{{ month_label(y, mo) }}</td><td class="num">{{ b|eur }}</td></tr>{% endfor %}
+  </tbody></table>
+  {% endif %}
+  <form method="post" action="{{ url_for('views.credit_delete', credit_id=c.id) }}">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <button class="link small">Supprimer ce crédit et son historique</button>
+  </form>
+  </details>
+</section>
+{% else %}<p class="muted">Aucun crédit suivi.</p>{% endfor %}
+
+<form method="post" class="card inline">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <label>Nouveau crédit <input name="name" required maxlength="120"></label>
+  <label>Objectif (facultatif) <input type="date" name="target_date"></label>
+  <button>Ajouter</button>
+</form>
+{% endblock %}

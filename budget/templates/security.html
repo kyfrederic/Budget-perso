@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Second facteur — Budget{% endblock %}
+{% block content %}
+<h1 class="page">Code à 6 chiffres</h1>
+
+{% if new_codes %}
+<section class="card">
+  <h2>C'est activé. Note tes codes de secours</h2>
+  <p>Ils ne seront <b>plus jamais affichés</b>. Chacun sert une fois, si ton téléphone est perdu ou en panne. Range-les ailleurs que sur ce téléphone.</p>
+  <ul class="codes">{% for c in new_codes %}<li><code>{{ c }}</code></li>{% endfor %}</ul>
+  <a class="btn primary-btn" href="{{ url_for('views.home') }}">Je les ai notés</a>
+</section>
+
+{% elif enabled %}
+<section class="card">
+  <h2>Second facteur actif</h2>
+  <p>Un code est demandé à chaque connexion. Codes de secours restants : {{ recovery_left }}.</p>
+  <form method="post">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="action" value="disable">
+    <p class="muted">Pour le désactiver (ou le refaire sur un nouveau téléphone), confirme avec ton mot de passe et un code en cours.</p>
+    <div class="row2">
+      <label>Mot de passe <input type="password" name="password" id="d_password" autocomplete="current-password" required></label>
+      <label>Code à 6 chiffres <input name="code" id="d_code" inputmode="numeric" autocomplete="one-time-code" required></label>
+    </div>
+    <button>Désactiver le second facteur</button>
+  </form>
+</section>
+
+{% elif pending %}
+<section class="card">
+  <h2>1. Scanne ce code avec ton appli d'authentification</h2>
+  <p class="muted">Google Authenticator, Aegis, 2FAS, Microsoft Authenticator… toutes conviennent.</p>
+  <div class="qr">{{ qr|safe }}</div>
+  <p class="small">Impossible de scanner ? Saisis cette clé à la main : <code class="key">{{ pending }}</code></p>
+  <h2>2. Saisis le code affiché</h2>
+  <form method="post" class="inline">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="action" value="confirm">
+    <label>Code à 6 chiffres <input name="code" id="code" inputmode="numeric" autocomplete="one-time-code" required autofocus class="code-input"></label>
+    <button class="primary">Activer</button>
+  </form>
+</section>
+
+{% else %}
+<section class="card">
+  <h2>Protéger la connexion</h2>
+  <p>En plus du mot de passe, l'appli demandera un code à 6 chiffres donné par une appli d'authentification sur ton téléphone. Même si ton mot de passe fuit, personne n'entre sans ton téléphone.</p>
+  <form method="post">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="action" value="start">
+    <button class="primary">Commencer</button>
+    <a class="btn" href="{{ url_for('views.home') }}">Plus tard</a>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

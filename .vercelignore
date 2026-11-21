@@ -1,0 +1,15 @@
+.venv
+.git
+.claude
+.pytest_cache
+instance
+backups
+tests
+scripts
+deploy
+Dockerfile
+.dockerignore
+design-system
+*.sqlite
+*.xlsx
+__pycache__

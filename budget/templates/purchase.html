@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Ajouter un achat — Budget{% endblock %}
+{% block content %}
+<h1 class="page">Ajouter un achat <small class="muted">· {{ month_label(m.year, m.month) }}</small></h1>
+
+<form method="post" action="{{ url_for('views.purchase_photo', year=m.year, month=m.month) }}" enctype="multipart/form-data" class="card photo-form" data-ticket data-ocr="{{ asset('ocr/') }}">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  {% if photo %}
+  <a class="ticket" href="{{ url_for('views.ticket_photo', token=photo) }}"><img src="{{ url_for('views.ticket_photo', token=photo) }}" alt="Photo du ticket"></a>
+  {% endif %}
+  <div>
+    {% if read == 'oui' %}<p class="note ok">Montant lu sur le ticket : vérifie-le avant d'enregistrer.</p>
+    {% elif read == 'non' %}<p class="note warn">Je n'ai pas réussi à lire le montant sur cette photo. Saisis-le ci-dessous, ou reprends la photo bien à plat et bien éclairée.</p>
+    {% elif read == 'absent' %}<p class="note warn">La lecture automatique n'a pas pu se lancer (JavaScript est peut-être désactivé). La photo est gardée, saisis le montant ci-dessous.</p>
+    {% else %}<p class="muted">Prends le ticket en photo : le montant est lu automatiquement, tu n'as plus qu'à vérifier.</p>{% endif %}
+    <label class="file">{{ 'Reprendre la photo' if photo else 'Photo du ticket' }}
+      <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" capture="environment" required>
+    </label>
+    <button class="{{ '' if photo else 'primary' }}" data-ticket-hide>Envoyer la photo</button>
+    <p class="muted small" data-reading role="status" hidden>Lecture du ticket en cours…</p>
+  </div>
+</form>
+
+<form method="post" class="card">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  {% if photo %}<input type="hidden" name="photo" value="{{ photo }}">{% endif %}
+  <div class="row2">
+    <label>Montant <input name="amount" id="amount" inputmode="decimal" required placeholder="0,00" value="{{ amount|saisie }}" {% if not label and amount is none %}autofocus{% endif %}></label>
+    <label>Date <input type="date" name="bought_on" id="bought_on" value="{{ bought_on }}"></label>
+  </div>
+  <label>Libellé <input name="label" id="label" required maxlength="120" placeholder="Resto, cadeau, réparation…" value="{{ label }}"></label>
+  <label>Payé avec
+    <select name="target" id="target">
+      <option value="matelas">Matelas (imprévu) — il reste {{ summary.matelas_rest|eur(decimales=False) }}</option>
+      {% for account, lines in groups.items() %}
+      <optgroup label="{{ account }}">
+        {% for l in lines %}<option value="poste:{{ l.poste_id }}">{{ l.name }} — {{ (l.actual or 0)|eur(decimales=False) }} sur {{ l.planned|eur(decimales=False) }}</option>{% endfor %}
+      </optgroup>
+      {% endfor %}
+    </select>
+  </label>
+  <label class="check-line"><input type="checkbox" name="besoin" id="besoin"> C'est un besoin (réparation, santé…) et non une envie <span class="muted small">— ne compte que pour un imprévu</span></label>
+  <div class="actions">
+    <button class="primary">Enregistrer l'achat</button>
+    <a class="btn" href="{{ url_for('views.month', year=m.year, month=m.month) }}">Annuler</a>
+  </div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script src="{{ asset('ocr/tesseract.min.js') }}" defer></script>
+<script src="{{ asset('ocr/ticket.js') }}" defer></script>
+{% endblock %}

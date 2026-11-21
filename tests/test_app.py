@@ -1,0 +1,429 @@
+import re
+
+import pytest
+import tomllib
+from budget import db as dbmod
+from pathlib import Path
+
+from budget.cli import load_modele
+from conftest import PASSWORD, ROOT
+
+
+def token(client, path="/connexion"):
+    html = client.get(path).get_data(as_text=True)
+    return re.search(r'name="csrf" value="([^"]+)"', html).group(1)
+
+
+def login(client):
+    t = token(client)
+    r = client.post("/connexion", data={"csrf": t, "password": PASSWORD})
+    assert r.status_code == 302
+    return token(client, "/postes")
+
+
+def seed(app):
+    conn = dbmod.connect(app.config["DATABASE"])
+    data = tomllib.loads((ROOT / "config" / "modele.toml").read_text(encoding="utf-8"))
+    load_modele(conn, 1, data)
+    conn.close()
+
+
+def q(app, sql, *args):
+    conn = dbmod.connect(app.config["DATABASE"])
+    rows = conn.execute(sql, args).fetchall()
+    conn.close()
+    return rows
+
+
+def test_pages_protegees(client):
+    for path in ("/", "/mois", "/postes", "/cheques", "/credits", "/mois/2026/10"):
+        r = client.get(path)
+        assert r.status_code == 302 and "/connexion" in r.headers["Location"]
+    assert client.get("/sante").status_code == 200
+
+
+def test_mauvais_mot_de_passe_et_blocage(client):
+    t = token(client)
+    for _ in range(5):
+        r = client.post("/connexion", data={"csrf": t, "password": "faux"})
+        assert r.status_code == 401
+    r = client.post("/connexion", data={"csrf": t, "password": PASSWORD})
+    assert r.status_code == 401 and "Trop de tentatives" in r.get_data(as_text=True)
+
+
+def test_post_sans_jeton_refuse(client):
+    login(client)
+    assert client.post("/cheques", data={"amount": "10", "payee": "x", "year": 2026, "month": 10}).status_code == 400
+
+
+def test_en_tetes_de_securite(client):
+    r = client.get("/connexion")
+    assert "default-src 'self'" in r.headers["Content-Security-Policy"]
+    assert r.headers["X-Frame-Options"] == "DENY"
+
+
+def test_parcours_complet(app, client):
+    seed(app)
+    t = login(client)
+
+    # Octobre vient du modèle ; on saisit le salaire et deux réels.
+    page = client.get("/mois/2026/10").get_data(as_text=True)
+    assert "Virements à faire" in page and "Réserve (matelas)" in page
+    lines = {r["name"]: r for r in q(app, "SELECT l.id, p.name, l.planned FROM lines l JOIN postes p ON p.id = l.poste_id")}
+
+    def save(year, month, salary, actuals):
+        rows = q(app, "SELECT l.id, p.name, l.planned FROM lines l JOIN postes p ON p.id = l.poste_id "
+                      "JOIN months m ON m.id = l.month_id WHERE m.year = ? AND m.month = ?", year, month)
+        data = {"csrf": t, "salary_net": salary, "net_imposable": "3 300", "pas": "250"}
+        for r in rows:
+            data[f"planned_{r['id']}"] = str(r["planned"] / 100).replace(".", ",")
+            data[f"actual_{r['id']}"] = actuals.get(r["name"], "")
+        r = client.post(f"/mois/{year}/{month}", data=data)
+        assert r.status_code == 302
+
+    save(2026, 10, "3 200,00", {"Nourriture": "470", "Électricité": "110"})
+    page = client.get("/mois/2026/10").get_data(as_text=True)
+    assert "470,00" in page                      # reste du matelas : 500 − 70 + 40
+    assert q(app, "SELECT salary_net FROM months")[0]["salary_net"] == 320000
+
+    # Nouveau mois : copie des postes et des prévus, réel vide.
+    r = client.post("/mois/nouveau", data={"csrf": t, "year": 2026, "month": 11, "salary_net": "3200"})
+    assert r.status_code == 302 and r.headers["Location"].endswith("/mois/2026/11")
+    nov = q(app, "SELECT l.* FROM lines l JOIN months m ON m.id = l.month_id WHERE m.month = 11")
+    assert len(nov) == len(lines) and all(r["actual"] is None for r in nov)
+    assert sum(r["planned"] for r in nov) == sum(r["planned"] for r in lines.values())
+
+    # Deuxième mois de dépassement sur la nourriture -> proposition, puis acceptation.
+    save(2026, 11, "3200", {"Nourriture": "480"})
+    page = client.get("/mois/2026/11").get_data(as_text=True)
+    assert "Une idée pour" in page
+    m = re.search(r'action="(/propositions/\d+/\d+/accepter)"', page)
+    assert client.post(m.group(1), data={"csrf": t}).status_code == 302
+    planned = q(app, "SELECT l.planned FROM lines l JOIN postes p ON p.id = l.poste_id JOIN months m ON m.id = l.month_id "
+                     "WHERE p.name = 'Nourriture' AND m.month = 11")[0]["planned"]
+    assert planned == 47500                      # médiane (470, 480) arrondie à 5 €
+    assert "Une idée pour" not in client.get("/mois/2026/11").get_data(as_text=True)
+    # Octobre n'est pas modifié.
+    assert q(app, "SELECT l.planned FROM lines l JOIN postes p ON p.id = l.poste_id JOIN months m ON m.id = l.month_id "
+                  "WHERE p.name = 'Nourriture' AND m.month = 10")[0]["planned"] == 40000
+
+    for path in ("/mois/2026/11/analyse", "/mois/2026/11/calendrier", "/mois", "/postes", "/credits", "/cheques", "/couleurs.css"):
+        assert client.get(path).status_code == 200, path
+    import html
+    assert "Taux d'épargne" in html.unescape(client.get("/mois/2026/11/analyse").get_data(as_text=True))
+
+
+def test_cheques(app, client):
+    seed(app)
+    t = login(client)
+    r = client.post("/cheques", data={"csrf": t, "amount": "120,50", "payee": "Plombier", "year": 2026, "month": 10, "note": "fuite"})
+    assert r.status_code == 302
+    assert "Plombier" in client.get("/mois/2026/10/calendrier").get_data(as_text=True)
+    assert "120,50" in client.get("/mois/2026/10").get_data(as_text=True)
+    cid = q(app, "SELECT id FROM cheques")[0]["id"]
+    # Octobre 2026 est passé : le chèque en attente est signalé.
+    assert "as-tu oublié" in client.get("/cheques").get_data(as_text=True)
+    client.post(f"/cheques/{cid}/debite", data={"csrf": t})
+    assert q(app, "SELECT status FROM cheques")[0]["status"] == "debited"
+    assert "as-tu oublié" not in client.get("/cheques").get_data(as_text=True)
+
+
+def test_postes_et_credits(app, client):
+    seed(app)
+    t = login(client)
+    acc = q(app, "SELECT id FROM accounts WHERE name = 'Boursorama'")[0]["id"]
+    r = client.post("/postes", data={"csrf": t, "name": "Gaz", "account_id": acc, "category": "besoins",
+                                     "debit_day": "20", "seasonal": "on", "planned": "80"})
+    assert r.status_code == 302
+    assert "Gaz" in client.get("/mois/2026/10").get_data(as_text=True)
+    cid = q(app, "SELECT id FROM credits WHERE name = 'Crédit renouvelable'")[0]["id"]
+    for month, bal in ((9, "1000"), (10, "800")):
+        client.post(f"/credits/{cid}/solde", data={"csrf": t, "year": 2026, "month": month, "balance": bal})
+    import html
+    # Page Crédits : le détail de chaque crédit (reste dû, évolution, part remboursée, objectif).
+    page = html.unescape(client.get("/credits").get_data(as_text=True))
+    assert "800\u00a0€" in page and "−200\u00a0€" in page
+    assert "20 % remboursé" in page and "avant le 31/12/2026" in page
+    # L'écran du mois ne montre que le total et renvoie vers le détail.
+    mois = html.unescape(client.get("/mois/2026/10").get_data(as_text=True))
+    assert "Ce que je dois" in mois and 'data-count="80000"' in mois and "Voir le détail" in mois
+    bandeau = mois[mois.index("Ce que je dois"):mois.index("Épargne du mois")]
+    assert "Crédit renouvelable" not in bandeau
+    # Les fichiers statiques portent l'empreinte de leur contenu.
+    assert re.search(r'/static/style\.css\?v=[0-9a-f]{10}', mois)
+
+
+def test_montant_invalide(app, client):
+    seed(app)
+    t = login(client)
+    r = client.post("/cheques", data={"csrf": t, "amount": "abc", "payee": "x", "year": 2026, "month": 10})
+    assert r.status_code == 400
+
+
+def test_cle_secrete_generee(tmp_path, monkeypatch):
+    from budget import create_app
+    monkeypatch.setenv("BUDGET_DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("BUDGET_SECRET_KEY", raising=False)
+    app = create_app({"TESTING": True})
+    assert len(app.config["SECRET_KEY"]) == 64
+    assert (tmp_path / "secret_key").stat().st_mode & 0o777 == 0o600
+    # Aucun mot de passe défini : la connexion renvoie vers la mise en route.
+    r = app.test_client().get("/connexion")
+    assert r.status_code == 302 and r.headers["Location"].endswith("/mise-en-route")
+
+
+def test_virements_a_cocher(app, client):
+    seed(app)
+    t = login(client)
+    data = {"csrf": t, "account": "Boursorama", "kind": "debut"}
+    assert client.post("/mois/2026/10/virement", data=data).status_code == 302
+    assert [tuple(r) for r in q(app, "SELECT a.name, t.kind FROM transfers_done t JOIN accounts a ON a.id = t.account_id")] == [("Boursorama", "debut")]
+    assert 'aria-pressed="true"' in client.get("/mois/2026/10").get_data(as_text=True)
+    # Le virement de fin de mois (reste du matelas) se coche à part.
+    r = client.post("/mois/2026/10/virement", data={"csrf": t, "account": "Livret A LCL", "kind": "fin"},
+                    headers={"X-Requested-With": "fetch"})
+    assert r.get_json()["done"] is True
+    # Un nouveau mois repart sans rien de coché.
+    client.post("/mois/nouveau", data={"csrf": t, "year": 2026, "month": 11, "salary_net": "3200"})
+    assert 'aria-pressed="true"' not in client.get("/mois/2026/11").get_data(as_text=True)
+    # Décocher.
+    client.post("/mois/2026/10/virement", data=data)
+    assert len(q(app, "SELECT * FROM transfers_done")) == 1
+    assert client.post("/mois/2026/10/virement", data={"csrf": t, "account": "Inconnu"}).status_code == 400
+
+
+def test_reste_du_salaire(app, client):
+    """Chaque virement coché est retranché du salaire."""
+    seed(app)
+    t = login(client)
+    conn = dbmod.connect(app.config["DATABASE"])
+    conn.execute("UPDATE months SET salary_net = 320000")
+    conn.commit(); conn.close()
+    h = {"X-Requested-With": "fetch"}
+
+    def cocher(compte):
+        return client.post("/mois/2026/10/virement", data={"csrf": t, "account": compte, "kind": "debut"}, headers=h).get_json()
+
+    page = client.get("/mois/2026/10").get_data(as_text=True)
+    assert 'data-remaining="320000"' in page                       # rien de coché : tout le salaire
+    r = cocher("Compte joint")                                     # nourriture : 400 €
+    assert r == {"done": True, "left": 4, "sent": 40000, "remaining": 280000}
+    r = cocher("Revolut")                                          # argent de poche : 200 €
+    assert r["remaining"] == 260000 and r["left"] == 3
+    assert 'data-remaining="260000"' in client.get("/mois/2026/10").get_data(as_text=True)
+    assert cocher("Revolut")["remaining"] == 280000                # décocher rend le montant
+    # Le virement de fin de mois (matelas) ne part pas du salaire.
+    r = client.post("/mois/2026/10/virement", data={"csrf": t, "account": "Livret A LCL", "kind": "fin"}, headers=h).get_json()
+    assert r["remaining"] == 280000
+    # Tout cocher : il reste ce qui revient au compte du salaire (postes LCL du modèle : 1 090 €).
+    for compte in ("Boursorama", "Revolut", "N26", "Livret A LCL"):
+        r = cocher(compte)
+    assert r["left"] == 0 and r["remaining"] == 109000
+
+
+def _photo(texte="TOTAL 62,00"):
+    import io
+    from PIL import Image, ImageDraw
+    img = Image.new("RGB", (400, 200), "white")
+    ImageDraw.Draw(img).text((20, 80), texte, fill="black")
+    buf = io.BytesIO()
+    img.save(buf, "JPEG")
+    buf.seek(0)
+    return buf
+
+
+def test_achats(app, client, tmp_path):
+    seed(app)
+    t = login(client)
+    poste = q(app, "SELECT id FROM postes WHERE name = 'Argent de poche'")[0]["id"]
+
+    # Imprévu sur le matelas : le reste du matelas baisse.
+    r = client.post("/mois/2026/10/achat", data={"csrf": t, "label": "Resto", "amount": "62", "bought_on": "2026-10-14", "target": "matelas"})
+    assert r.status_code == 302
+    import html
+    page = html.unescape(client.get("/mois/2026/10").get_data(as_text=True))
+    assert "Resto" in page and 'data-count="43800"' in page          # 500 − 62
+
+    # Achat sur un poste : ajouté à son réel ; un deuxième s'additionne.
+    for montant in ("30", "12,50"):
+        client.post("/mois/2026/10/achat", data={"csrf": t, "label": "Ciné", "amount": montant, "target": f"poste:{poste}"})
+    reel = lambda: q(app, "SELECT l.actual FROM lines l WHERE l.poste_id = ?", poste)[0]["actual"]
+    assert reel() == 4250
+    # Supprimer rend le montant ; au dernier, le poste redevient « non saisi ».
+    ids = [r["id"] for r in q(app, "SELECT id FROM purchases WHERE poste_id = ? ORDER BY id", poste)]
+    client.post(f"/achats/{ids[0]}/supprimer", data={"csrf": t})
+    assert reel() == 1250
+    client.post(f"/achats/{ids[1]}/supprimer", data={"csrf": t})
+    assert reel() is None
+
+    # Refus : montant nul, poste inconnu.
+    assert client.post("/mois/2026/10/achat", data={"csrf": t, "label": "x", "amount": "0"}).status_code == 400
+    assert client.post("/mois/2026/10/achat", data={"csrf": t, "label": "x", "amount": "5", "target": "poste:9999"}).status_code == 400
+
+
+def test_photo_du_ticket(app, client, monkeypatch):
+    from budget import receipt
+    seed(app)
+    t = login(client)
+    monkeypatch.setattr(receipt, "ocr", lambda img: receipt.Reading(amount=6200, bought_on="2026-10-14", label="Le Bistrot"))
+    r = client.post("/mois/2026/10/achat/photo", data={"csrf": t, "photo": (_photo(), "ticket.jpg")}, content_type="multipart/form-data")
+    assert r.status_code == 302
+    loc = r.headers["Location"]
+    assert "montant=6200" in loc and "lu=oui" in loc
+    token = re.search(r"photo=([0-9a-f]{32})", loc).group(1)
+    page = client.get(loc).get_data(as_text=True)
+    assert 'value="62"' in page and "Le Bistrot" in page and 'value="2026-10-14"' in page
+
+    # La photo n'est servie qu'à un utilisateur connecté.
+    assert client.get(f"/tickets/{token}.jpg").status_code == 200
+    anonyme = app.test_client()
+    assert anonyme.get(f"/tickets/{token}.jpg").status_code == 302
+    assert client.get("/tickets/" + "0" * 32 + ".jpg").status_code == 404
+    assert client.get("/tickets/..%2Fbudget.sqlite.jpg").status_code == 404
+
+    # Rien n'est enregistré avant confirmation ; puis l'achat garde sa photo.
+    assert q(app, "SELECT COUNT(*) n FROM purchases")[0]["n"] == 0
+    client.post("/mois/2026/10/achat", data={"csrf": t, "label": "Le Bistrot", "amount": "62,00", "target": "matelas", "photo": token})
+    pu = q(app, "SELECT * FROM purchases")[0]
+    assert pu["photo"] == token and pu["amount"] == 6200
+    # Supprimer l'achat supprime aussi la photo.
+    client.post(f"/achats/{pu['id']}/supprimer", data={"csrf": t})
+    assert client.get(f"/tickets/{token}.jpg").status_code == 404
+
+    # Texte lu dans le navigateur (tesseract.js) : le serveur en extrait le total, sans relire l'image.
+    monkeypatch.setattr(receipt, "ocr", lambda img: pytest.fail("la lecture serveur ne doit pas être appelée"))
+    r = client.post("/mois/2026/10/achat/photo", content_type="multipart/form-data",
+                    data={"csrf": t, "photo": (_photo(), "t.jpg"), "ocr_text": "CARREFOUR MARKET\nTOTAL A PAYER 42,23\n13/10/26"})
+    assert "montant=4223" in r.headers["Location"] and "date=2026-10-13" in r.headers["Location"]
+
+    # Un fichier qui n'est pas une image est refusé.
+    import io
+    r = client.post("/mois/2026/10/achat/photo", data={"csrf": t, "photo": (io.BytesIO(b"pas une image"), "x.jpg")}, content_type="multipart/form-data")
+    assert r.status_code == 400
+
+
+def test_postes_groupes_par_categorie(app, client):
+    seed(app)
+    t = login(client)
+    import html
+    page = html.unescape(client.get("/mois/2026/10").get_data(as_text=True))
+    saisie = page[page.index("Saisie du mois"):]
+    i_charges, i_envies, i_epargne, i_matelas = (saisie.index(f"cat-{k}") for k in ("besoins", "envies", "epargne", "matelas"))
+    assert i_charges < i_envies < i_epargne < i_matelas
+    # Chaque poste est sous sa catégorie, avec sa banque sur la ligne.
+    assert i_charges < saisie.index("Nourriture") < i_envies
+    assert i_envies < saisie.index("Argent de poche") < i_epargne
+    assert i_epargne < saisie.index("Épargne programmée") < i_matelas
+    # Changer la catégorie d'un poste le déplace de bloc.
+    p = q(app, "SELECT p.id, p.account_id FROM postes p WHERE p.name = 'Nourriture'")[0]
+    client.post(f"/postes/{p['id']}", data={"csrf": t, "name": "Nourriture", "account_id": p["account_id"],
+                                            "category": "envies", "active": "on"})
+    saisie = html.unescape(client.get("/mois/2026/10").get_data(as_text=True))
+    saisie = saisie[saisie.index("Saisie du mois"):]
+    assert saisie.index("cat-envies") < saisie.index("Nourriture") < saisie.index("cat-epargne")
+    assert "Charges fixes" in client.get("/postes").get_data(as_text=True)
+
+
+
+def test_jours_de_prelevement_depuis_le_calendrier(app, client):
+    seed(app)
+    t = login(client)
+    ids = {r["name"]: r["id"] for r in q(app, "SELECT id, name FROM postes")}
+    q_set = lambda: {r["name"]: r["debit_day"] for r in q(app, "SELECT name, debit_day FROM postes")}
+    # Le modèle d'essai a des postes sans jour : ils sont proposés à la saisie.
+    page = client.get("/mois/2026/10/calendrier").get_data(as_text=True)
+    assert f'name="day_{ids["Nourriture"]}"' in page and "Enregistrer les jours" in page
+    r = client.post("/mois/2026/10/calendrier/jours", data={
+        "csrf": t, f"day_{ids['Nourriture']}": "3", f"day_{ids['Carburant']}": ""})
+    assert r.status_code == 302
+    assert q_set()["Nourriture"] == 3 and q_set()["Carburant"] is None
+    page = client.get("/mois/2026/10/calendrier").get_data(as_text=True)
+    assert f'#poste-{ids["Nourriture"]}' in page                      # placé dans le calendrier
+    assert f'name="day_{ids["Nourriture"]}"' not in page               # plus dans la liste à compléter
+    # Le jour vaut pour les autres mois aussi.
+    client.post("/mois/nouveau", data={"csrf": t, "year": 2026, "month": 11, "salary_net": "3000"})
+    assert f'#poste-{ids["Nourriture"]}' in client.get("/mois/2026/11/calendrier").get_data(as_text=True)
+    # Refus : jour hors 1–31, poste inconnu.
+    assert client.post("/mois/2026/10/calendrier/jours", data={"csrf": t, f"day_{ids['Carburant']}": "32"}).status_code == 400
+    assert client.post("/mois/2026/10/calendrier/jours", data={"csrf": t, "day_99999": "5"}).status_code == 400
+    assert q_set()["Carburant"] is None
+
+
+def test_poste_reactive_dans_le_calendrier(app, client):
+    seed(app)
+    t = login(client)
+    p = q(app, "SELECT id, account_id FROM postes WHERE name = 'Argent de poche'")[0]
+    form = lambda **kw: {"csrf": t, "name": "Argent de poche", "account_id": p["account_id"], "category": "envies", **kw}
+    # Désactivé, puis un nouveau mois : le poste n'y est pas.
+    client.post(f"/postes/{p['id']}", data=form())
+    client.post("/mois/nouveau", data={"csrf": t, "year": 2026, "month": 11, "salary_net": "3000"})
+    in_nov = lambda: q(app, "SELECT l.planned FROM lines l JOIN months m ON m.id = l.month_id "
+                            "WHERE m.month = 11 AND l.poste_id = ?", p["id"])
+    assert in_nov() == []
+    # Réactivé avec un jour : il rejoint le budget de novembre avec son dernier montant, et le calendrier.
+    r = client.post(f"/postes/{p['id']}", data=form(active="on", debit_day="12"), follow_redirects=True)
+    assert "réactivé et ajouté au budget de novembre 2026" in r.get_data(as_text=True)
+    assert in_nov()[0]["planned"] == 20000
+    cal = client.get("/mois/2026/11/calendrier").get_data(as_text=True)
+    assert f"#poste-{p['id']}" in cal and 'id="jour-12"' in cal
+
+
+def test_calendrier_totaux_par_jour(app, client):
+    seed(app)
+    t = login(client)
+    ids = {r["name"]: r["id"] for r in q(app, "SELECT id, name FROM postes")}
+    # Deux postes le même jour (Électricité 150 € le 15 dans le modèle + Nourriture 400 €).
+    client.post("/mois/2026/10/calendrier/jours", data={"csrf": t, f"day_{ids['Nourriture']}": "15"})
+    import html
+    cal = html.unescape(client.get("/mois/2026/10/calendrier").get_data(as_text=True))
+    jour15 = cal[cal.index('id="jour-15"'):]
+    jour15 = jour15[:jour15.index("</li>\n      </ul>") if "</li>\n      </ul>" in jour15 else 2000]
+    assert "550 €" in cal and "Électricité" in jour15 and "Nourriture" in jour15
+
+
+def test_budget_fixe(app, client):
+    seed(app)
+    t = login(client)
+    fixe = lambda m=10: q(app, "SELECT budget_fixed FROM months WHERE month = ?", m)[0]["budget_fixed"]
+    depart = fixe()
+    assert depart == sum(r["planned"] for r in q(app, "SELECT planned FROM lines"))
+    # Modifier un prévu ne change pas le budget fixé.
+    line = q(app, "SELECT l.id FROM lines l JOIN postes p ON p.id = l.poste_id WHERE p.name = 'Nourriture'")[0]["id"]
+    rows = q(app, "SELECT id, planned FROM lines")
+    data = {"csrf": t, "salary_net": "3200"}
+    for r in rows:
+        data[f"planned_{r['id']}"] = str(r["planned"] / 100).replace(".", ",")
+    data[f"planned_{line}"] = "450"
+    client.post("/mois/2026/10", data=data)
+    assert fixe() == depart
+    import html
+    page = html.unescape(client.get("/mois/2026/10").get_data(as_text=True))
+    assert "au-dessus du budget fixé" in page
+    # Le champ « Budget fixé » le change volontairement.
+    data["budget_fixed"] = "3 130"
+    client.post("/mois/2026/10", data=data)
+    assert fixe() == 313000
+    # Un nouveau mois part du total des postes copiés.
+    client.post("/mois/nouveau", data={"csrf": t, "year": 2026, "month": 11, "salary_net": "3000"})
+    assert fixe(11) == sum(r["planned"] for r in q(app, "SELECT l.planned FROM lines l JOIN months m ON m.id = l.month_id WHERE m.month = 11"))
+
+
+def test_migration_budget_fixe(tmp_path, monkeypatch):
+    """Une base d'avant le budget fixé reçoit la colonne, remplie avec le total des prévus."""
+    import sqlite3 as sq
+    from budget import create_app
+    from budget import db as dbmod
+    monkeypatch.setenv("BUDGET_DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    app = create_app({"TESTING": True, "SECRET_KEY": "t"})
+    conn = sq.connect(app.config["DATABASE"])
+    conn.execute("INSERT INTO months (user_id, year, month) VALUES (1, 2026, 9)")
+    mid = conn.execute("SELECT id FROM months").fetchone()[0]
+    conn.execute("INSERT INTO postes (user_id, name, account_id) VALUES (1, 'X', 1)")
+    conn.execute("INSERT INTO lines (month_id, poste_id, planned) VALUES (?, 1, 12345)", (mid,))
+    conn.execute("ALTER TABLE months DROP COLUMN budget_fixed")
+    conn.execute("UPDATE schema_version SET version = 4")
+    conn.commit(); conn.close()
+    create_app({"TESTING": True, "SECRET_KEY": "t"})
+    conn = sq.connect(app.config["DATABASE"])
+    assert conn.execute("SELECT budget_fixed FROM months").fetchone()[0] == 12345

@@ -1,0 +1,126 @@
+# Modèle de départ du budget (reprise du mois d'octobre d'Excel).
+# Utilisé une seule fois par `flask --app budget charger-modele`.
+#
+# MONTANTS D'EXEMPLE : remplace-les par ceux de ton fichier OCTOBRE_SOLO.xlsx
+# avant de charger le modèle (ou corrige-les ensuite dans l'appli, écran « Postes »).
+#
+# Champs :
+#   nom          libellé du poste
+#   compte       doit correspondre à un [[comptes]] de settings.toml
+#   montant      prévu mensuel en euros
+#   categorie    besoins | envies | epargne  (répartition 50-30-20)
+#   jour         jour du prélèvement (1-31), optionnel
+#   saisonnier   true pour électricité, énergie… (pas de proposition de baisse)
+#   contractuel  true pour emprunt, assurances… (jamais de proposition)
+#   reserve      true pour le matelas (un seul poste)
+#   part_laetitia  part de Laetitia en euros, pour information (facultatif)
+
+# Budget du mois indiqué, financé par le salaire reçu à la fin du mois précédent.
+[mois_depart]
+annee = 2026
+mois = 10
+salaire_net = 0
+net_imposable = 0
+prelevement_source = 0
+
+[[postes]]
+nom = "Emprunt immobilier"
+compte = "LCL"
+montant = 900
+categorie = "besoins"
+jour = 5
+contractuel = true
+
+[[postes]]
+nom = "Assurance habitation"
+compte = "LCL"
+montant = 25
+categorie = "besoins"
+jour = 10
+contractuel = true
+
+[[postes]]
+nom = "Assurance auto"
+compte = "LCL"
+montant = 45
+categorie = "besoins"
+jour = 10
+contractuel = true
+
+[[postes]]
+nom = "Carburant"
+compte = "LCL"
+montant = 120
+categorie = "besoins"
+
+[[postes]]
+nom = "Épargne programmée"
+compte = "Livret A LCL"
+montant = 200
+categorie = "epargne"
+jour = 6
+
+[[postes]]
+nom = "Nourriture"
+compte = "Compte joint"
+montant = 400
+part_laetitia = 400
+categorie = "besoins"
+
+[[postes]]
+nom = "Électricité"
+compte = "Boursorama"
+montant = 150
+categorie = "besoins"
+jour = 15
+saisonnier = true
+
+[[postes]]
+nom = "Navigo"
+compte = "Boursorama"
+montant = 88
+categorie = "besoins"
+jour = 1
+
+[[postes]]
+nom = "Abonnements (box, téléphone, streaming)"
+compte = "Boursorama"
+montant = 60
+categorie = "envies"
+jour = 8
+
+[[postes]]
+nom = "Crédit renouvelable"
+compte = "Boursorama"
+montant = 150
+categorie = "besoins"
+jour = 12
+contractuel = true
+
+[[postes]]
+nom = "Argent de poche"
+compte = "Revolut"
+montant = 200
+categorie = "envies"
+
+[[postes]]
+nom = "Cantine du boulot"
+compte = "N26"
+montant = 100
+categorie = "besoins"
+
+[[postes]]
+nom = "Réserve (matelas)"
+compte = "N26"
+montant = 500
+categorie = "besoins"
+reserve = true
+
+# Crédits suivis (solde restant dû). Les soldes mensuels passés
+# s'importent avec `flask --app budget import-excel`.
+[[credits]]
+nom = "Crédit renouvelable"
+objectif = "2026-12-31"
+
+[[credits]]
+nom = "Emprunt immobilier"

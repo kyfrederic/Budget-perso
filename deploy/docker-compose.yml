@@ -1,0 +1,30 @@
+# Lancer depuis ce dossier : docker compose up -d --build
+# Nécessite un fichier .env (voir .env.exemple).
+services:
+  app:
+    build: ..
+    restart: unless-stopped
+    volumes:
+      - ../instance:/data            # base SQLite + clé de session
+      - ../config:/app/config:ro     # settings.toml modifiable sans reconstruire
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    expose: ["8000"]
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      DOMAINE: ${DOMAINE:?Renseigner DOMAINE dans .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data             # certificats HTTPS
+      - caddy_config:/config
+    depends_on: [app]
+
+volumes:
+  caddy_data:
+  caddy_config:

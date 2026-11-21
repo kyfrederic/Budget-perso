@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}{{ month_label(m.year, m.month)|capitalize }} — Budget{% endblock %}
+{% block content %}
+{% set titre = "Budget de" %}{% include "_monthnav.html" %}
+
+{# ---- En premier : ce que je dois ---- #}
+<section class="hero debts">
+  {% set open_debts = debts|selectattr('balance', 'gt', 0)|list %}
+  {% set late = open_debts|selectattr('on_track', 'false')|list %}
+  <div class="debts-head">
+    <p class="hero-label">Ce que je dois</p>
+    <p class="hero-big">{% if open_debts %}<span data-count="{{ debt_total }}">{{ debt_total|eur(decimales=False) }}</span>{% else %}0 €{% endif %}</p>
+    <p class="hero-sub">{% if open_debts %}{{ open_debts|length }} crédit{{ 's' if open_debts|length > 1 }} en cours{% if debt_delta < 0 %} · {{ debt_delta|eur(signe=True, decimales=False) }} ce mois{% endif %}
+      {% elif debts %}Tous tes crédits suivis sont soldés.
+      {% else %}Aucun crédit suivi.{% endif %}</p>
+    {% if late %}<p class="debts-late">{{ late|length }} objectif{{ 's' if late|length > 1 }} de remboursement à revoir</p>{% endif %}
+    <p class="debts-link"><a href="{{ url_for('views.credits') }}">{{ 'Voir le détail' if debts else 'Suivre un crédit' }}</a></p>
+  </div>
+</section>
+
+{# ---- Épargne du mois et matelas, en plus petit ---- #}
+{% set C = 226.2 %}
+{% set frac = ([[summary.matelas_rest, 0]|max, summary.reserve]|min / summary.reserve) if summary.reserve else 0 %}
+<section class="month-strip">
+  <div class="strip-block">
+    <p class="hero-label">Épargne du mois</p>
+    <p class="strip-big">{% if summary.epargne_mois is not none %}<span data-count="{{ summary.epargne_mois }}">{{ summary.epargne_mois|eur(decimales=False) }}</span>{% else %}—{% endif %}</p>
+    <p class="muted small">{% if summary.epargne_mois is none %}Saisis ton salaire plus bas.
+      {% elif summary.matelas_saved %}salaire − budget + reste du matelas viré au Livret A
+      {% elif summary.reserve and summary.to_savings_end > 0 %}salaire − budget ; le reste du matelas s'y ajoutera si tu le vires en fin de mois
+      {% else %}salaire − budget{% endif %}</p>
+  </div>
+  {% if summary.reserve %}
+  <div class="strip-block matelas {% if summary.matelas_rest <= 0 %}tight{% endif %}">
+    <div class="ring small" role="img" aria-label="Matelas : il reste {{ summary.matelas_rest|eur(decimales=False) }} sur {{ summary.reserve|eur(decimales=False) }}">
+      <svg viewBox="0 0 86 86" width="64" height="64" aria-hidden="true"><circle class="t" cx="43" cy="43" r="36"/><circle class="v" cx="43" cy="43" r="36" stroke-dasharray="{{ C }}" stroke-dashoffset="{{ '%.1f'|format(C * (1 - frac)) }}" data-ring/></svg>
+    </div>
+    <div>
+      <p class="hero-label">Matelas disponible</p>
+      <p class="strip-big"><b data-count="{{ summary.matelas_rest }}">{{ summary.matelas_rest|eur(decimales=False) }}</b></p>
+      <p class="muted small">sur {{ summary.reserve|eur(decimales=False) }}, pour les imprévus et les dépassements</p>
+    </div>
+  </div>
+  {% endif %}
+</section>
+
+<dl class="facts">
+  <div><dt>Salaire reçu fin {{ salary_month }}</dt><dd>{{ row.salary_net|eur(decimales=False) }}</dd></div>
+  <div class="budget-fact"><dt>Budget du mois</dt>
+    <dd>{{ summary.total_budget|eur(decimales=False) }}
+      {% if summary.budget_gap < 0 %}<span class="gap over" title="Dépassement du budget">{{ summary.budget_gap|eur(signe=True, decimales=False) }}</span>
+      {% elif summary.budget_gap > 0 %}<span class="gap under" title="Reste dans le budget">{{ summary.budget_gap|eur(signe=True, decimales=False) }}</span>
+      {% else %}<span class="gap exact" title="Pile dans le budget">✓</span>{% endif %}</dd>
+    <small>dépensé {{ summary.spent|eur(decimales=False) }}</small></div>
+  <div><dt>Taux d'épargne</dt><dd>{% if summary.taux_epargne is not none %}{{ '%.0f'|format(summary.taux_epargne) }} %{% else %}—{% endif %}</dd></div>
+</dl>
+
+<p class="add-row">
+  <a class="btn primary-btn" href="{{ url_for('views.purchase', year=m.year, month=m.month) }}">{{ icon('ajouter', 18) }} Ajouter un achat</a>
+  {% if summary.reserve and (summary.unplanned or summary.overruns or (summary.savings and summary.savings_counted)) %}
+  <span class="muted small">Matelas : {{ summary.reserve|eur(decimales=False) }}{% if summary.unplanned %} − {{ summary.unplanned|eur(decimales=False) }} d'imprévus{% endif %}{% if summary.overruns %} − {{ summary.overruns|eur(decimales=False) }} de dépassements{% endif %}{% if summary.savings and summary.savings_counted %} + {{ summary.savings|eur(decimales=False) }} d'économies{% endif %}</span>
+  {% endif %}
+</p>
+
+{# ---- Ce qui demande ton attention ---- #}
+{% if summary.epargne_debut is not none and summary.epargne_debut < 0 %}
+<p class="note alert">Le budget dépasse le salaire de {{ (-summary.epargne_debut)|eur }}.</p>
+{% endif %}
+{% if summary.deficit > 0 %}
+<p class="note alert">Les dépassements dépassent le matelas de {{ summary.deficit|eur }} : le matelas ne suffit plus, risque de découvert.</p>
+{% elif summary.reserve and summary.matelas_rest == 0 %}
+<p class="note warn">Le matelas a servi en entier ce mois-ci. Rien à virer en épargne en fin de mois, et le prochain achat imprévu passerait au-delà.</p>
+{% elif summary.overruns > 0 or summary.unplanned > 0 %}
+<p class="note calm">Le matelas a absorbé {{ (summary.reserve - summary.matelas_rest)|eur(decimales=False) if summary.matelas_rest < summary.reserve else (summary.overruns + summary.unplanned)|eur(decimales=False) }}. Tout va bien, il est là pour ça.</p>
+{% endif %}
+{% for c in overdue %}
+<p class="note warn">Chèque de {{ c.amount|eur }} pour {{ c.payee }}, prévu en {{ month_label(c.year, c.month) }}, toujours en attente : as-tu oublié de le déposer ? <a href="{{ url_for('views.cheques') }}">Voir les chèques</a></p>
+{% endfor %}
+{% for a in seasonal %}<p class="note {{ 'warn' if a.level == 'warn' else 'calm' }}">{{ a.text }}</p>{% endfor %}
+{% if cheques %}
+<p class="note calm">Chèque{{ 's' if cheques|length > 1 }} à passer ce mois : {{ cheques_total|eur }}, à retrancher du disponible. <a href="{{ url_for('views.calendar_view', year=m.year, month=m.month) }}">Détail</a></p>
+{% endif %}
+
+{# ---- Suggestions d'ajustement ---- #}
+{% for p in proposals %}
+<section class="card sugg">
+  <p><b>Une idée pour {{ p.name }}</b><br>
+    {{ p.reason }} On passe le prévu de {{ p.current|eur(decimales=False) }} à <b>{{ p.proposed|eur(decimales=False) }}</b> ?</p>
+  <div class="actions">
+    <form method="post" action="{{ url_for('views.proposal_decide', poste_id=p.poste_id, ref_idx=p.ref_idx, action='accepter') }}">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}"><button class="primary">Oui, ajuster</button></form>
+    <form method="post" action="{{ url_for('views.proposal_decide', poste_id=p.poste_id, ref_idx=p.ref_idx, action='refuser') }}">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}"><button>Plus tard</button></form>
+  </div>
+</section>
+{% endfor %}
+
+{# ---- Achats du mois ---- #}
+{% macro achat(pu) %}
+<li>
+  {% if pu.photo %}<a class="thumb" href="{{ url_for('views.ticket_photo', token=pu.photo) }}" aria-label="Voir le ticket de {{ pu.label }}"><img src="{{ url_for('views.ticket_photo', token=pu.photo) }}" alt="" loading="lazy" width="44" height="44"></a>
+  {% else %}<span class="thumb none" aria-hidden="true"></span>{% endif %}
+  <div><b>{{ pu.label }}</b>
+    <small class="muted">{% if pu.bought_on %}{{ pu.bought_on|datefr }}{% endif %}{% if pu.poste %} · {{ pu.poste }}{% elif pu.category == 'besoins' %} · besoin{% endif %}</small></div>
+  <b class="amount">{{ pu.amount|eur }}</b>
+  <form method="post" action="{{ url_for('views.purchase_delete', purchase_id=pu.id) }}">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <button class="link rm" aria-label="Supprimer {{ pu.label }}" title="Supprimer cet achat">{{ icon('retirer', 18) }}</button>
+  </form>
+</li>
+{% endmacro %}
+{% set imprevus = purchases|selectattr('poste_id', 'none')|list %}
+{% set sur_postes = purchases|rejectattr('poste_id', 'none')|list %}
+<section class="card" id="achats">
+  <h2>Imprévus payés avec le matelas <span class="count">{% if imprevus %}{{ summary.unplanned|eur }}{% else %}aucun{% endif %}</span></h2>
+  {% if imprevus %}
+  <ul class="achats">{% for pu in imprevus %}{{ achat(pu) }}{% endfor %}</ul>
+  {% else %}
+  <p class="muted">Un resto, un achat qui n'était pas prévu ? Ajoute-le : il sera pris sur le matelas.</p>
+  {% endif %}
+  {% if sur_postes %}
+  <h2 class="sub">Achats notés sur un poste <span class="count">{{ sur_postes|sum(attribute='amount')|eur }}</span></h2>
+  <ul class="achats">{% for pu in sur_postes %}{{ achat(pu) }}{% endfor %}</ul>
+  {% endif %}
+</section>
+
+{# ---- Virements à cocher ---- #}
+{% macro check(account, kind, is_done, label) %}
+<form method="post" action="{{ url_for('views.transfer_toggle', year=m.year, month=m.month) }}" data-transfer>
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <input type="hidden" name="account" value="{{ account }}"><input type="hidden" name="kind" value="{{ kind }}">
+  <button class="check-btn" aria-pressed="{{ 'true' if is_done else 'false' }}" aria-label="{{ label }}">{{ icon('valider', 18) }}</button>
+</form>
+{% endmacro %}
+<section class="card" id="virements">
+  <h2>Virements à faire <span class="count" data-left>{% if todo and n_left == 0 %}tous faits{% elif todo %}{{ n_left }} à faire{% endif %}</span></h2>
+  {% if remaining is not none and todo %}
+  <div class="salary-left">
+    <p class="hero-label">Reste du salaire sur {{ settings.compte_salaire }}</p>
+    <p class="salary-big"><span data-remaining="{{ remaining }}">{{ remaining|eur(decimales=False) }}</span></p>
+    <progress class="bar" max="{{ [to_send, 1]|max }}" value="{{ sent }}" data-sent aria-label="Part des virements déjà faits">{{ sent|eur }}</progress>
+    <p class="muted small">Salaire de {{ row.salary_net|eur(decimales=False) }}. Il restera {{ remaining_end|eur(decimales=False) }} quand tous les virements seront faits.</p>
+  </div>
+  {% endif %}
+  <ul class="virements">
+    {% for v in todo %}
+    {% set is_done = (v.account, 'debut') in done %}
+    <li class="{{ account_class(v.account) }} {% if is_done %}done{% endif %}">
+      <span class="dot"></span>
+      <div><b>{{ v.account }}</b><small class="muted">{{ v.detail }}</small></div>
+      <b class="amount">{{ v.amount|eur }}</b>
+      {{ check(v.account, 'debut', is_done, 'Virement vers ' ~ v.account ~ ' fait') }}
+    </li>
+    {% else %}<li class="muted">Aucun poste pour l'instant.</li>
+    {% endfor %}
+    {% if todo and reserve_account %}
+    {% set is_done = (settings.compte_epargne, 'fin') in done %}
+    <li class="{{ account_class(settings.compte_epargne) }} later {% if is_done %}done{% endif %}">
+      <span class="dot"></span>
+      <div><b>Fin de mois : reste du matelas</b><small class="muted">{{ reserve_account }} vers {{ settings.compte_epargne }}, montant à ce jour</small></div>
+      <b class="amount">{{ summary.to_savings_end|eur }}</b>
+      {{ check(settings.compte_epargne, 'fin', is_done, 'Reste du matelas viré en épargne') }}
+    </li>
+    {% endif %}
+  </ul>
+  {% for v in stays %}<p class="muted small">Reste sur {{ v.account }} : {{ v.amount|eur }} ({{ v.detail }}).</p>{% endfor %}
+</section>
+
+{# ---- Où tu en es ---- #}
+<section class="card">
+  <h2>Où tu en es <span class="count">{{ summary.n_entered }} sur {{ summary.n_lines }} postes saisis</span></h2>
+  {% for key, label in [('besoins', 'Charges fixes'), ('envies', 'Envies'), ('epargne', 'Épargne')] %}
+  {% set items = progress|selectattr('category', 'equalto', key)|list %}
+  {% if items %}
+  <p class="sub-cat cat-{{ key }}"><span class="cat-mark"></span>{{ label }}</p>
+  {% for l in items %}
+  <div class="poste {% if l.diff > 0 %}over{% endif %}">
+    <header><span><span class="dot {{ account_class(l.account) }}"></span> {{ l.name }}</span>
+      <span>{{ l.actual|eur(decimales=False) }} sur {{ l.planned|eur(decimales=False) }}{% if l.diff > 0 %} · {{ l.diff|eur(signe=True, decimales=False) }}{% endif %}</span></header>
+    <progress class="bar" max="{{ [l.planned, 1]|max }}" value="{{ [l.actual, l.planned]|min if l.actual > 0 else 0 }}" data-bar>{{ l.actual|eur }}</progress>
+  </div>
+  {% endfor %}
+  {% endif %}
+  {% endfor %}
+  {% if not progress %}
+  <p class="muted">Rien de saisi pour l'instant. Quand tu notes un réel plus bas, il apparaît ici.</p>
+  {% endif %}
+</section>
+
+<form method="post" class="card" id="mois">
+  <p class="eyebrow">Saisie du mois</p>
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  {# Bouton par défaut : la touche Entrée enregistre, elle ne retire jamais un poste. #}
+  <button class="hidden-default" tabindex="-1" aria-hidden="true">Enregistrer</button>
+  <h2>Revenus</h2>
+  <div class="row3">
+    <label>Salaire net <input name="salary_net" inputmode="decimal" value="{{ row.salary_net|saisie }}"></label>
+    <label>Net imposable <input name="net_imposable" inputmode="decimal" value="{{ row.net_imposable|saisie }}"></label>
+    <label>Prélèvement à la source <input name="pas" inputmode="decimal" value="{{ row.pas|saisie }}"></label>
+  </div>
+  <label class="budget-field">Budget fixé du mois <input name="budget_fixed" id="budget_fixed" inputmode="decimal" value="{{ row.budget_fixed|saisie }}">
+    <small class="muted">Fixé en début de mois : il ne change pas quand tu modifies un poste. L'épargne du mois = salaire − ce budget.</small></label>
+  {% if summary.planned_total != summary.total_budget %}
+  <p class="note calm">Postes prévus : {{ summary.planned_total|eur(decimales=False) }}, soit {{ (summary.planned_total - summary.total_budget)|abs|eur(decimales=False) }} {{ 'au-dessus' if summary.planned_total > summary.total_budget else 'en dessous' }} du budget fixé.</p>
+  {% endif %}
+
+  <h2>Postes</h2>
+  <div class="lines">
+    <div class="line head"><span>Poste</span><span>Prévu</span><span title="Vide = égal au prévu">Réel</span><span>Écart</span><span title="Pour information, jamais additionné">Part Laetitia</span><span></span></div>
+    {% macro poste_line(l) %}
+    <div class="line">
+      <span class="name">{{ l.name }}
+        <small class="bank {{ account_class(l.account) }}"><span class="dot"></span>{{ l.account }}{% if l.debit_day %} · le {{ l.debit_day }}{% endif %}</small>
+        {% if l.seasonal %}<span class="badge">saisonnier</span>{% endif %}
+        {% if l.contractual %}<span class="badge">contractuel</span>{% endif %}
+      </span>
+      <label class="c-planned"><span class="lbl">Prévu</span><input name="planned_{{ l.line_id }}" inputmode="decimal" value="{{ l.planned|saisie }}" aria-label="Prévu {{ l.name }}"></label>
+      {% if l.is_reserve %}
+      <span class="computed"><span class="lbl">Reste</span>{{ summary.matelas_rest|eur }}</span>
+      <span></span><span></span><span></span>
+      {% else %}
+      <label class="c-actual"><span class="lbl">Réel</span><input name="actual_{{ l.line_id }}" inputmode="decimal" value="{{ l.actual|saisie }}" placeholder="{{ l.planned|saisie }}" title="Laisse vide si le réel est égal au prévu" aria-label="Réel {{ l.name }}"></label>
+      <span class="diff {% if l.diff and l.diff > 0 %}over{% elif l.diff and l.diff < 0 %}under{% endif %}">{% if l.diff is not none %}{{ l.diff|eur(signe=True) }}{% endif %}</span>
+      <label class="partner"><span class="lbl">Laetitia</span><input name="partner_{{ l.line_id }}" inputmode="decimal" value="{{ l.info_partner|saisie }}" aria-label="Part de Laetitia {{ l.name }}"></label>
+      <button class="link rm" formaction="{{ url_for('views.line_remove', year=m.year, month=m.month, line_id=l.line_id) }}" formnovalidate title="Retirer ce poste de ce mois" aria-label="Retirer {{ l.name }} de ce mois">{{ icon('retirer', 18) }}</button>
+      {% endif %}
+    </div>
+    {% endmacro %}
+    {% for grp in cat_groups %}
+    <div class="group cat-{{ grp.key }}"><span class="cat-mark"></span>{{ grp.label }} <small class="muted">{{ '%.0f'|format(grp.pct) }} % du budget</small><b>{{ grp.total|eur }}</b></div>
+    {% for l in grp.lines %}{{ poste_line(l) }}{% endfor %}
+    {% endfor %}
+    {% if reserve_lines %}
+    <div class="group cat-matelas"><span class="cat-mark"></span>Matelas <small class="muted">pour les imprévus et les dépassements</small><b>{{ reserve_lines|sum(attribute='planned')|eur }}</b></div>
+    {% for l in reserve_lines %}{{ poste_line(l) }}{% endfor %}
+    {% endif %}
+    <div class="line total"><span>Total</span><span>{{ summary.total_budget|eur }}</span><span></span><span></span><span></span><span></span></div>
+  </div>
+  <label>Notes du mois <textarea name="notes" rows="2">{{ row.notes }}</textarea></label>
+  <div class="sticky"><button class="primary">Enregistrer</button></div>
+</form>
+
+{% if available_postes %}
+<form method="post" action="{{ url_for('views.line_add', year=m.year, month=m.month) }}" class="card inline">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <label>Ajouter un poste existant à ce mois
+    <select name="poste_id">{% for p in available_postes %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select>
+  </label>
+  <button>Ajouter</button>
+</form>
+{% endif %}
+<p class="muted small center">Nouveau poste ou modification (compte, jour, saisonnier…) : écran <a href="{{ url_for('views.postes') }}">Postes</a>.</p>
+{% endblock %}
